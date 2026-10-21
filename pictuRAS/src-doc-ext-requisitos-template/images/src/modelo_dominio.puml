@@ -1,0 +1,138 @@
+@startuml modelo_dominio
+' Modelo de domínio atualizado — Fase 1 (vídeo)
+' Conceitos do problema (não classes de implementação).
+' Gerar: java -jar plantuml.jar -tpng modelo_dominio.puml
+skinparam shadowing false
+skinparam defaultFontName Carlito
+skinparam defaultFontSize 13
+skinparam classAttributeIconSize 0
+hide circle
+hide methods
+hide empty members
+skinparam class {
+  BackgroundColor #7ECEF4
+  BorderColor #333333
+  BackgroundColor<<novo>> #F7B267
+  BorderColor<<novo>> #A0522D
+  BackgroundColor<<alterado>> #CDEBF9
+  BorderColor<<alterado>> #A0522D
+}
+skinparam linetype polyline
+skinparam nodesep 60
+skinparam ranksep 60
+
+class Utilizador
+class Anónimo
+class "Registado\n(Gratuito)" as Registado
+class Premium
+class "Limites do perfil" as Limites <<novo>> {
+  duração máxima de vídeo
+  resolução máxima de saída
+  operações diárias
+  keyframes máximos
+  blocos de texto máximos
+}
+class "Quota diária" as Quota <<novo>> {
+  data
+  operações usadas
+}
+
+class Projeto
+class "Ficheiro multimédia" as Media <<novo>> {
+  nome
+  formato
+  tamanho
+}
+class Imagem <<alterado>> {
+  largura
+  altura
+}
+class Vídeo <<novo>> {
+  duração
+  resolução
+  taxa de fotogramas
+  codec de vídeo
+  codec de áudio
+}
+
+class Ferramenta
+class "Ferramenta de imagem" as FImg <<alterado>>
+class "Ferramenta de vídeo" as FVid <<novo>>
+class "Recorte temporal" as FTrim <<novo>>
+class "Pan & Crop" as FCrop <<novo>>
+class "Velocidade" as FSpd <<novo>>
+class "Legendas e texto" as FTxt <<novo>>
+class "Filtro de cor" as FCol <<novo>>
+
+class "Trabalho de processamento" as Trab <<novo>> {
+  estado {Em fila, A processar,\n   Concluído, Falhado, Cancelado}
+  progresso
+  data de submissão
+  data de conclusão
+  motivo de falha
+}
+
+class "Segmento temporal" as Seg <<novo>> {
+  instante inicial
+  instante final
+}
+class Keyframe <<novo>> {
+  instante
+  posição
+  dimensão
+}
+class "Bloco de texto" as Bloco <<novo>> {
+  texto
+  instante inicial
+  instante final
+  estilo
+  posição
+}
+class "Ficheiro de legendas" as Leg <<novo>> {
+  formato (SRT/VTT)
+}
+class "LUT 3D" as LUT <<novo>> {
+  dimensão da grelha
+}
+class "Predefinição de cor" as Pred <<novo>>
+
+' Perfis
+Anónimo -up-|> Utilizador
+Registado -up-|> Utilizador
+Premium -up-|> Utilizador
+Utilizador "0..*" -up- "1" Limites : sujeito a >
+Utilizador "1" -left- "0..*" Quota : tem >
+
+' Projetos e media
+Utilizador "1..*" -right- "0..*" Projeto : gere >
+Projeto "1" -right- "0..*" Media : contém >
+Imagem -up-|> Media
+Vídeo -up-|> Media
+Vídeo "0..*" -- "0..1" Vídeo : deriva de >
+
+' Ferramentas
+FImg -up-|> Ferramenta
+FVid -up-|> Ferramenta
+FTrim -up-|> FVid
+FCrop -up-|> FVid
+FSpd -up-|> FVid
+FTxt -up-|> FVid
+FCol -up-|> FVid
+FImg "0..*" -- "0..*" Imagem : altera >
+
+' Trabalho de processamento
+Utilizador "1" -- "0..*" Trab : submete >
+Trab "0..*" -left- "1" FVid : aplica >
+Trab "0..*" -right- "1" Vídeo : origem >
+Trab "0..1" -- "0..1" Vídeo : produz >
+Trab "0..1" -- "0..1" Quota : consome >
+
+' Parâmetros das ferramentas de vídeo
+FTrim "1" -- "1" Seg : usa >
+FSpd "1" -- "0..1" Seg : limita a >
+FCrop "1" -- "2..*" Keyframe : usa >
+FTxt "1" -- "1..*" Bloco : sobrepõe >
+Leg "0..1" -- "1..*" Bloco : origina >
+FCol "1" -- "0..1" Pred : usa >
+FCol "1" -- "0..1" LUT : usa >
+@enduml

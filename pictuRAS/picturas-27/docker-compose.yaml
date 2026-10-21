@@ -1,0 +1,568 @@
+# Fixed project name: container names are picturas-<service>-<n>, independent of the
+# directory this repository was cloned into. Override with `docker compose -p <name>`.
+name: picturas
+
+services:
+  # elasticsearch:
+  #   image: docker.elastic.co/elasticsearch/elasticsearch:7.6.2
+  #   environment:
+  #     - discovery.type=single-node
+  #   ports:
+  #     - 9200:9200
+  #   networks:
+  #     - elk
+  #
+  # logstash:
+  #   image: docker.elastic.co/logstash/logstash:7.6.2
+  #   ports:
+  #     - "12201:12201/udp"
+  #   volumes:
+  #     - ./logstash.conf:/etc/logstash/logstash.conf
+  #   command: logstash -f /etc/logstash/logstash.conf
+  #   networks:
+  #     - elk
+  #   depends_on:
+  #     - elasticsearch
+  #
+  # kibana:
+  #   image: docker.elastic.co/kibana/kibana:7.6.2
+  #   ports:
+  #     - 5601:5601
+  #   # volumes:
+  #   #   - ./kibana_data:/usr/share/kibana/data
+  #   networks:
+  #     - elk
+  #   depends_on:
+  #     - elasticsearch
+  #     - logstash
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "8080:443"
+    networks:
+      - elk
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs/selfsigned.crt:/etc/nginx/certs/selfsigned.crt:ro
+      - ./certs/selfsigned.key:/etc/nginx/certs/selfsigned.key:ro
+    depends_on:
+      - api_gateway
+      - ws_gateway
+      - seaweedfs
+
+  # S3-compatible object storage.
+  # Replaces MinIO, whose Docker images were withdrawn from Docker Hub and quay.io in 2026.
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.47
+    restart: on-failure
+    command: >
+      server -dir=/data -s3 -s3.port=9000
+      -s3.encryptVolumeData
+      -master.volumeSizeLimitMB=1024
+    ports:
+      - "9000:9000"
+      - "9090:8888"
+    environment:
+      # Admin credentials. SeaweedFS reads these when no -s3.config file is given.
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-admin}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-admin123}
+      # Passphrase protecting the key-encryption-key used for encryption at rest.
+      WEED_S3_SSE_KEK_PASSPHRASE: ${S3_KEK_PASSPHRASE:-picturas-kek-passphrase-change-me}
+    volumes:
+      - seaweedfs_data:/data
+    networks:
+      - elk
+
+  img_storage:
+    build: ./imageStorageService
+    restart: on-failure
+    depends_on:
+      - seaweedfs
+    ports:
+      - "11000:11000"
+    environment:
+      S3_ENDPOINT: "seaweedfs:9000"
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-admin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-admin123}
+      FRONTEND_URL: "https://localhost:8080"
+    networks:
+      - elk
+
+  rabbitmq:
+    build:
+      context: ./rabbitMQ
+    restart: on-failure
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: "user"
+      RABBITMQ_DEFAULT_PASS: "password"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmqctl status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - elk
+
+  projects_mongoDB:
+    image: mongo:4.4
+    restart: on-failure
+    networks:
+      - elk
+    command: mongod --port 27018
+    ports:
+        - '27018:27018'
+    healthcheck:
+      test: ["CMD", "mongo", "--host", "localhost", "--port", "27018", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - project_data:/data/db
+
+  projects:
+    build: ./projects
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      projects_mongoDB:
+        condition: service_started
+    ports:
+      - "9002:9001"
+    restart: on-failure
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: user
+      RABBITMQ_PASS: password
+      # Vídeo (Fase 1)
+      VIDEO_MAX_UPLOAD_MB: 500
+      VIDEO_SPEED_TIMEOUT_SEC: 120
+    networks:
+      - elk
+    volumes:
+      - image_data:/app/images
+
+  # Worker de vídeo (Fase 1): as cinco operações de vídeo com FFmpeg (DA-02)
+  video_tool:
+    build:
+      context: ./Tools
+      dockerfile: video/Dockerfile
+    restart: on-failure
+    networks:
+      - elk
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: user
+      RABBITMQ_PASS: password
+      VIDEO_DATA_ROOT: /app/images
+      VIDEO_JOB_TIMEOUT_SEC: 1800
+      VIDEO_SPEED_TIMEOUT_SEC: 120
+      VIDEO_MEMORY_LIMIT_MB: 3072
+    volumes:
+      - image_data:/app/images
+
+  users_mongoDB:
+    image: mongo:4.4
+    restart: on-failure
+    command: mongod --port 27019
+    ports:
+        - '27019:27019'
+    healthcheck:
+      test: ["CMD", "mongo", "--host", "localhost", "--port", "27019", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - elk
+    volumes:
+      - user_data:/data/db
+
+  users:
+    build: ./users
+    depends_on:
+      - users_mongoDB
+    ports:
+      - "10001:10001"
+    restart: on-failure
+    environment:
+      - FREE_DAILY_OP=5
+      - JWT_SECRET_KEY=lisan_al_gaib
+      - FIELD_ENCRYPTION_KEY=uma-frase-secreta-bem-grande-ou-64-hex
+    networks:
+      - elk
+    volumes:
+      - ./users:/app
+      - /app/node_modules
+
+  subscriptions_mongoDB:
+    image: mongo:4.4
+    restart: on-failure
+    networks:
+      - elk
+    healthcheck:
+      test: ["CMD", "mongo", "--host", "localhost", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - subscription_data:/data/db
+
+  subscriptions:
+    build: ./subscriptions
+    depends_on:
+      - subscriptions_mongoDB
+      - users
+    ports:
+      - "11001:11001"
+    restart: on-failure
+    environment:
+      - SECRET_KEY=card_secret_key
+    networks:
+      - elk
+    volumes:
+      - ./subscriptions:/app
+      - /app/node_modules
+
+  api_gateway:
+    build: ./apiGateway
+    depends_on:
+      - projects
+      - users
+    restart: on-failure
+    environment:
+      - JWT_SECRET_KEY=lisan_al_gaib
+      - VIDEO_MAX_UPLOAD_MB=500
+    networks:
+      - elk
+    volumes:
+      - ./apiGateway:/app
+      - /app/node_modules
+
+  bg_remove_ai_tool:
+    build:
+      context: ./Tools
+      dockerfile: bg_remove_ai/Dockerfile
+    restart: on-failure
+    networks:
+      - elk
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - image_data:/app/images
+
+  binarization_tool:
+    build:
+      context: ./Tools
+      dockerfile: binarization/Dockerfile
+    restart: on-failure
+    networks:
+      - elk
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - image_data:/app/images
+
+  border_tool:
+    build:
+      context: ./Tools
+      dockerfile: border/Dockerfile
+    restart: on-failure
+    networks:
+      - elk
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - image_data:/app/images
+
+  brightness_tool:
+    build:
+      context: ./Tools
+      dockerfile: brightness/Dockerfile
+    restart: on-failure
+    networks:
+      - elk
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - image_data:/app/images
+
+  contrast_tool:
+    build:
+      context: ./Tools
+      dockerfile: contrast/Dockerfile
+    restart: on-failure
+    networks:
+      - elk
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - image_data:/app/images
+
+  cut_tool:
+    build:
+      context: ./Tools
+      dockerfile: cut/Dockerfile
+    restart: on-failure
+    networks:
+      - elk
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - image_data:/app/images
+
+  cut_ai_tool:
+    build:
+      context: ./Tools
+      dockerfile: cut_ai/Dockerfile
+    networks:
+      - elk
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
+    volumes:
+      - image_data:/app/images
+
+  people_ai_tool:
+    build: 
+      context: ./Tools
+      dockerfile: people_ai/Dockerfile
+    networks:
+      - elk
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
+    volumes:
+      - image_data:/app/images
+
+  obj_ai_tool:
+    build: 
+      context: ./Tools
+      dockerfile: obj_ai/Dockerfile
+    networks:
+      - elk
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
+    volumes:
+      - image_data:/app/images
+
+  resize_tool:
+    build:
+      context: ./Tools
+      dockerfile: resize/Dockerfile
+    restart: on-failure
+    networks:
+      - elk
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - image_data:/app/images
+
+  rotate_tool:
+    build:
+      context: ./Tools
+      dockerfile: rotate/Dockerfile
+    restart: on-failure
+    networks:
+      - elk
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - image_data:/app/images
+
+  saturation_tool:
+    build:
+      context: ./Tools
+      dockerfile: saturation/Dockerfile
+    restart: on-failure
+    networks:
+      - elk
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - image_data:/app/images
+
+  text_ai_tool:
+    build:
+      context: ./Tools
+      dockerfile: text_ai/Dockerfile
+    networks:
+      - elk
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
+    volumes:
+      - image_data:/app/images
+
+  upgrade_ai_tool:
+    build:
+      context: ./Tools
+      dockerfile: upgrade_ai/Dockerfile
+    networks:
+      - elk
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
+    volumes:
+      - image_data:/app/images
+
+  generative-mock:
+    build: ./generative-mock
+    ports:
+      - "7860:7860"
+    networks:
+      - elk
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:7860/sdapi/v1/samplers').read()\""
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  expand_ai_tool:
+    build:
+      context: ./Tools
+      dockerfile: expand_ai/Dockerfile
+    networks:
+      - elk
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      generative-mock:
+        condition: service_healthy
+    restart: on-failure
+    volumes:
+      - image_data:/app/images
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=user
+      - RABBITMQ_PASS=password
+      - GEN_EXPAND_URL=http://generative-mock:7860
+      
+  watermark_tool_ms:
+    image: prcsousa/picturas-watermark-tool-ms:latest
+    restart: always
+    environment:
+      - RABBITMQ_REQUESTS_QUEUE_NAME=watermark_queue
+      - RABBITMQ_USER=user
+      - RABBITMQ_PASS=password
+      - RABBITMQ_HOST=rabbitmq
+      - PICTURAS_LOG_LEVEL=INFO  # change / remove in production
+      - RABBITMQ_RESULTS_EXCHANGE=picturas
+      - RABBITMQ_RESULTS_ROUTING_KEY=project_queue
+    networks:
+      - elk
+    volumes:
+      - image_data:/images
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    networks:
+      - elk
+    environment:
+    - NEXT_PUBLIC_API_BASE_URL=/api-gateway/
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  ws_gateway:
+    build: ./wsGateway
+    restart: on-failure
+    networks:
+      - elk
+    ports:
+      - "4000:4000"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=user
+      - RABBITMQ_PASS=password
+      - JWT_SECRET_KEY=lisan_al_gaib
+
+  mongo-backup:
+    image: mongo:4.4
+    restart: on-failure
+    depends_on:
+      - users_mongoDB
+      - projects_mongoDB
+      - subscriptions_mongoDB
+    volumes:
+      - ./backups/mongo:/backups
+    networks:
+      - elk
+    command: >
+      bash -c '
+        echo "[mongo-backup] container started";
+        while true; do
+          echo "[mongo-backup] starting daily backup...";
+          TS=$(date +"%F-%H%M");
+
+          echo "[mongo-backup] timestamp = $${TS}";
+
+          mongodump \
+            --host users_mongoDB \
+            --port 27019 \
+            --archive=/backups/users-$${TS}.gz \
+            --gzip;
+
+          mongodump \
+            --host projects_mongoDB \
+            --port 27018 \
+            --archive=/backups/projects-$${TS}.gz \
+            --gzip;
+
+          mongodump \
+            --host subscriptions_mongoDB \
+            --archive=/backups/subscriptions-$${TS}.gz \
+            --gzip;
+
+          echo "[mongo-backup] backup finished, sleeping 24h...";
+          sleep 86400;
+        done
+      '
+
+networks:
+  elk:
+    driver: bridge
+
+volumes:
+  rabbitmq_data:
+  project_data:
+  user_data:
+  image_data:
+  seaweedfs_data:
+  subscription_data:

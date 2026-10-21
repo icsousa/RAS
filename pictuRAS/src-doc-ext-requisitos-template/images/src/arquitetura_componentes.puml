@@ -1,0 +1,50 @@
+@startuml arquitetura_componentes
+' Vista de componentes com suporte a vídeo (Fase 1). Novo a laranja, alterado com contorno laranja.
+skinparam shadowing false
+skinparam defaultFontName Carlito
+skinparam defaultFontSize 13
+skinparam componentStyle rectangle
+skinparam rectangle {
+  BackgroundColor #7ECEF4
+  BorderColor #333333
+  BackgroundColor<<novo>> #F7B267
+  BorderColor<<novo>> #A0522D
+  BackgroundColor<<alterado>> #CDEBF9
+  BorderColor<<alterado>> #A0522D
+}
+skinparam databaseBackgroundColor #7ECEF4
+skinparam queueBackgroundColor #F7B267
+left to right direction
+
+actor "Browser" as B
+rectangle "Frontend (Next.js)\npágina /videos" as FE <<alterado>>
+rectangle "Nginx\n(client_max_body_size 512m)" as NG <<alterado>>
+rectangle "API Gateway\nroutes/videos.js" as GW <<alterado>>
+rectangle "projects\nroutes/videos.js · videoService\nvideoRules · ffprobe" as PR <<alterado>>
+rectangle "users\n(perfil e quota, sem alterações)" as US
+rectangle "img_storage\n(S3 SeaweedFS)" as ST
+rectangle "WS Gateway\nevento video-job" as WS <<alterado>>
+rectangle "video_tool\n(Python + FFmpeg)" as VT <<novo>>
+database "MongoDB projects\nvideos · video_jobs" as DB <<alterado>>
+queue "video_queue" as Q1
+queue "video_results_queue" as Q2
+queue "ws_queue" as Q3
+rectangle "volume image_data\n/app/images/videos/<job>" as VOL <<alterado>>
+
+B --> NG
+NG --> FE
+NG --> GW
+NG --> WS
+GW --> PR
+PR --> US
+PR --> ST
+PR --> DB
+PR --> Q1
+Q1 --> VT
+VT --> Q2
+Q2 --> PR
+PR --> Q3
+Q3 --> WS
+PR ..> VOL
+VT ..> VOL
+@enduml

@@ -1,0 +1,67 @@
+@startuml diagrama_casos_uso
+' Diagrama de casos de uso atualizado — Fase 1 (vídeo)
+' Gerar: java -jar plantuml.jar -tpng diagrama_casos_uso.puml
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Carlito
+skinparam defaultFontSize 13
+skinparam actorStyle default
+skinparam usecase {
+  BackgroundColor #7ECEF4
+  BorderColor #333333
+  BackgroundColor<<vídeo>> #F7B267
+  BorderColor<<vídeo>> #A0522D
+  BackgroundColor<<alterado>> #CDEBF9
+  BorderColor<<alterado>> #A0522D
+}
+skinparam actor {
+  BackgroundColor #7ECEF4
+  BorderColor #333333
+}
+skinparam note {
+  BackgroundColor #FFF4E5
+  BorderColor #C76C1B
+}
+
+actor "Utilizador\nAnónimo" as Anon
+actor "Utilizador\nRegistado" as Reg
+actor "Utilizador\nPremium" as Prem
+actor "Utilizador\nConvidado" as Conv
+
+Reg -|> Anon
+Prem -|> Reg
+Conv -|> Reg
+
+rectangle "PictuRAS" {
+  usecase "Registo" as UC_REG
+  usecase "Login" as UC_LOGIN
+  usecase "Carregar imagens\ne vídeos" as UC_CARR <<alterado>>
+  usecase "Aplicar encadeamento de\nferramentas a conjunto\nde imagens" as UC_ENC
+  usecase "Criar filtro\npersonalizado" as UC_PRESET
+  usecase "Partilhar projeto" as UC_PART
+  usecase "Assistente IA\nna edição" as UC_IA
+
+  usecase "UC-VID-001\nRecorte temporal\n(Trim)" as V1 <<vídeo>>
+  usecase "UC-VID-003\nModificação de\nvelocidade" as V3 <<vídeo>>
+  usecase "UC-VID-005\nFiltros de cor\n(Color Grading / LUTs)" as V5 <<vídeo>>
+  usecase "UC-VID-002\nEnquadramento dinâmico\n(Pan & Crop)" as V2 <<vídeo>>
+  usecase "UC-VID-004\nLegendas e texto\n(Overlay & Subtitles)" as V4 <<vídeo>>
+}
+
+Anon --> UC_REG
+Anon --> UC_CARR
+Anon --> UC_ENC
+Anon --> V1
+Anon --> V3
+Anon --> V5
+
+Reg --> UC_LOGIN
+Reg --> UC_PRESET
+Reg --> UC_PART
+Reg --> V2
+Reg --> V4
+
+Prem --> UC_IA
+
+note "Laranja: casos de uso de vídeo (Fase 1).\nAzul claro com contorno laranja: caso de uso\nda baseline alterado (passa a aceitar vídeo).\n\nCada perfil herda os casos de uso do perfil\nacima. Limites por perfil (duração, resolução,\nquota, keyframes, blocos de texto, LUT 3D,\nSoft-sub) nas regras RNG-01 e RNG-04 e nas\nRN de cada caso de uso." as N1
+@enduml

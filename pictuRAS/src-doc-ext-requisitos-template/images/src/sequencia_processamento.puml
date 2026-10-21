@@ -1,0 +1,61 @@
+@startuml sequencia_processamento
+skinparam shadowing false
+skinparam defaultFontName Carlito
+skinparam defaultFontSize 12
+skinparam sequenceMessageAlign left
+autonumber
+
+actor Utilizador as U
+participant "Frontend" as F
+participant "API Gateway" as G
+participant "projects\n(videoService)" as P
+participant "users" as US
+database "MongoDB" as DB
+participant "img_storage / S3" as S
+queue "video_queue" as Q
+participant "video_tool\n(FFmpeg)" as W
+queue "video_results_queue" as R
+participant "WS Gateway" as WS
+
+U -> F : Aplicar (ferramenta, parâmetros)
+F -> G : POST /projects/:u/:p/videos/:v/jobs
+G -> P : encaminha (JWT validado)
+P -> DB : trabalho ativo neste vídeo?
+P -> P : validateJob(perfil, versão)
+opt perfil Registado
+  P -> US : GET /:u/process/1 (reserva)
+end
+P -> DB : cria trabalho (Em fila)
+P --> F : 201 trabalho (< 2 s)
+P -> WS : video-job (Em fila) via ws_queue
+P -> S : obter versão de origem
+P -> P : copia para /app/images/videos/<job>/input
+P -> Q : pedido (caminhos, limites, parâmetros)
+Q -> W : consome (prefetch 1)
+loop durante o FFmpeg
+  W -> R : progresso %
+  R -> P : atualiza trabalho (A processar)
+  P -> WS : video-job (progresso)
+  WS -> F : evento video-job
+end
+alt sucesso
+  W -> R : success (output.mp4, metadados, avisos)
+  R -> P : resultado
+  P -> S : guarda output (stage out)
+  P -> DB : nova versão ativa (deriva da origem); trabalho Concluído
+else falha, tempo ou memória excedidos
+  W -> R : error (código, causa)
+  R -> P : resultado
+  P -> US : POST /:u/process/refund/1 (se reservada)
+  P -> DB : trabalho Falhado (origem intacta)
+else cancelamento pelo utilizador
+  F -> P : POST jobs/:j/cancel
+  P -> P : escreve CANCEL na pasta do trabalho
+  P -> US : devolve a operação
+  W -> W : deteta CANCEL e termina o FFmpeg
+end
+P -> P : apaga a pasta temporária do trabalho
+P -> WS : video-job (estado final)
+WS -> F : evento video-job
+F -> U : resultado / mensagem de erro
+@enduml
