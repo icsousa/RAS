@@ -10,7 +10,7 @@ Os critérios de aceitação da ERS são a base dos testes, organizados em três
 - *Testes do serviço `projects`* (`projects/test`, `node --test`): regras por perfil, validação de parâmetros, LUT e legendas, e ciclo de vida dos trabalhos (quota, cancelamento, versões) com MongoDB, S3, RabbitMQ e `users` simulados.
 - *Testes ponta a ponta e de interface* (manuais), com a stack completa (`docker compose up --build`) e o browser.
 
-Ambiente dos testes automáticos: FFmpeg 6.1, Python 3.13 com Pillow e NumPy, Node.js 22. #preencher[Ambiente dos testes manuais: sistema operativo, browser, versão do Docker.]
+Ambiente dos testes automáticos: FFmpeg 6.1, Python 3.13 com Pillow e NumPy, Node.js 22. Testes manuais: Linux, browser Brave (Chromium), Docker Compose, com a stack completa da solução entregue. #preencher[versões do Docker e do browser, se pretenderem indicar]
 
 == Testes realizados
 
@@ -67,19 +67,19 @@ Ambiente dos testes automáticos: FFmpeg 6.1, Python 3.13 com Pillow e NumPy, No
     [TST-COL-04/06], [Auto], [Grelha 20³, valores fora de [0; 1], entradas em falta e LUT 1D rejeitados.], [REQ-VID-COL-009], [Passa],
     [TST-COL-05/07], [Auto (Node)], [LUT recusado a Registado; Premium importa e o caminho chega ao worker.], [REQ-VID-COL-002], [Passa],
     table.cell(colspan: 5, fill: luma(240))[*Ponta a ponta e interface (manuais, com a stack completa)*],
-    [TST-E2E-01], [Manual], [Dado um MP4 de 30 s, Quando um Registado o carrega, Então aparece na lista com duração e resolução; um AVI é rejeitado com mensagem.], [REQ-VID-SUBMIT-001/002], [#preencher[Passa / Falha]],
-    [TST-E2E-02], [Manual], [Dado um recorte, Quando é aplicado, Então o estado passa Em fila → A processar (%) → Concluído em tempo real e a resposta chega em < 2 s.], [REQ-VID-STATUS-001, REQ-VID-PERF-001], [#preencher[…]],
-    [TST-E2E-03], [Manual], [Dado um Registado com 5 operações, Quando conclui uma operação de vídeo, Então o contador mostra 4; se cancelar, mantém 5.], [REQ-VID-QUOTA-003], [#preencher[…]],
-    [TST-E2E-04], [Manual], [Dado um trabalho em curso, Quando o utilizador cancela, Então o estado passa a Cancelado e não é criada versão.], [REQ-VID-STATUS-003], [#preencher[…]],
-    [TST-UI-01], [Manual], [Marcadores com resolução de 1 ms, fotograma e duração atualizados, pré-visualização só do segmento.], [REQ-VID-TRIM-001/002/011], [#preencher[…]],
-    [TST-UI-02], [Manual], [Moldura arrastável com rácio fixo e mínimo 320×240; adicionar, editar e remover keyframes; animação na pré-visualização.], [REQ-VID-CROP-001/002/003/009], [#preencher[…]],
-    [TST-UI-03], [Manual], [Atalhos e controlo contínuo; duração final; aviso fora de 0.5x–2x; pré-visualização à velocidade escolhida.], [REQ-VID-SPD-001/010/011], [#preencher[…]],
-    [TST-UI-04], [Manual], [Texto desenhado em tempo real; edição de blocos importados de SRT.], [REQ-VID-TXT-001/008], [#preencher[…]],
-    [TST-UI-05], [Manual], [Pré-visualização dos filtros em pausa e em reprodução, medindo ≥ 24 fps num vídeo 1080p (ferramentas de desempenho do browser).], [REQ-VID-COL-001/006], [#preencher[…]],
+    [TST-E2E-01], [Manual], [Dado um MP4 de 30 s, Quando um Registado o carrega, Então aparece na lista com duração e resolução; um AVI é rejeitado com mensagem.], [REQ-VID-SUBMIT-001/002], [Passa — o MP4 é aceite e o AVI não pode ser escolhido no seletor de ficheiros; a rejeição pelo servidor é coberta por TST-SUBMIT-01],
+    [TST-E2E-02], [Manual], [Dado um recorte, Quando é aplicado, Então o estado passa Em fila → A processar (%) → Concluído em tempo real e a resposta chega em < 2 s.], [REQ-VID-STATUS-001, REQ-VID-PERF-001], [Falha — o estado é atualizado em tempo real, mas a resposta à submissão demora mais de 2 s],
+    [TST-E2E-03], [Manual], [Dado um Registado com 5 operações, Quando conclui uma operação de vídeo, Então o contador mostra 4; se cancelar, mantém 5.], [REQ-VID-QUOTA-003], [Passa],
+    [TST-E2E-04], [Manual], [Dado um trabalho em curso, Quando o utilizador cancela, Então o estado passa a Cancelado e não é criada versão.], [REQ-VID-STATUS-003], [Passa],
+    [TST-UI-01], [Manual], [Marcadores com resolução de 1 ms, fotograma e duração atualizados, pré-visualização só do segmento.], [REQ-VID-TRIM-001/002/011], [Passa],
+    [TST-UI-02], [Manual], [Moldura arrastável com rácio fixo e mínimo 320×240; adicionar, editar e remover keyframes; animação na pré-visualização.], [REQ-VID-CROP-001/002/003/009], [Passa],
+    [TST-UI-03], [Manual], [Atalhos e controlo contínuo; duração final; aviso fora de 0.5x–2x; pré-visualização à velocidade escolhida.], [REQ-VID-SPD-001/010/011], [Passa],
+    [TST-UI-04], [Manual], [Texto desenhado em tempo real; edição de blocos importados de SRT.], [REQ-VID-TXT-001/008], [Passa],
+    [TST-UI-05], [Manual], [Pré-visualização dos filtros em pausa e em reprodução, medindo ≥ 24 fps num vídeo 1080p (ferramentas de desempenho do browser).], [REQ-VID-COL-001/006], [Passa],
   ),
 )
 
-Os testes automáticos executam-se com `python -m unittest discover -s tests -v` (em `Tools/video`) e `node --test test/*.test.js` (em `projects`); ver Anexo A. Resultado à data: 33 testes do worker e 23 do serviço `projects`, todos a passar.
+Os testes automáticos executam-se com `python -m unittest discover -s tests -v` (em `Tools/video`) e `node --test test/*.test.js` (em `projects`); ver Anexo A. Resultado à data: 33 testes do worker e 23 do serviço `projects`, todos a passar; dos 9 testes manuais, 8 passam e 1 falha (TST-E2E-02).
 
 == Limitações e defeitos conhecidos
 
@@ -88,4 +88,5 @@ Os testes automáticos executam-se com `python -m unittest discover -s tests -v`
 - *Modo Soft-sub*: posição, cor e fonte dos blocos não são preservadas (dependem do leitor).
 - *Corte rápido*: indisponível quando o vídeo excede a resolução do perfil (é feito o corte preciso, com aviso).
 - *Uma réplica do worker processa um trabalho de cada vez*; com muitos utilizadores, a fila cresce até se acrescentarem réplicas.
-- *Testes ponta a ponta e de interface* por executar no momento desta versão do relatório. #preencher[Atualizar após a execução.]
+- *Tempo de resposta da submissão* (REQ-VID-PERF-001, TST-E2E-02): nos testes manuais a confirmação de um trabalho demorou mais de 2 s. O processamento é assíncrono e o estado chega em tempo real, mas o pedido espera pela consulta do perfil e pela reserva de quota no serviço `users` e pela primeira ligação ao RabbitMQ antes de responder. Requisito não cumprido; melhoria prevista para a Fase 2 (responder antes destas chamadas ou mantê-las em cache).
+- *Validação do formato no cliente*: o seletor de ficheiros só oferece MP4/MOV, pelo que um AVI não chega a ser enviado; a mensagem de rejeição do servidor só é visível arrastando ou forçando o envio (verificada em TST-SUBMIT-01).
