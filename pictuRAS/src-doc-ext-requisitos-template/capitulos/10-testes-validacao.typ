@@ -10,7 +10,7 @@ Os critérios de aceitação da ERS são a base dos testes, organizados em três
 - *Testes do serviço `projects`* (`projects/test`, `node --test`): regras por perfil, validação de parâmetros, LUT e legendas, e ciclo de vida dos trabalhos (quota, cancelamento, versões) com MongoDB, S3, RabbitMQ e `users` simulados.
 - *Testes ponta a ponta e de interface* (manuais), com a stack completa (`docker compose up --build`) e o browser.
 
-Ambiente dos testes automáticos: FFmpeg 6.1, Python 3.13 com Pillow e NumPy, Node.js 22. Testes manuais: Linux, browser Brave (Chromium), Docker Compose, com a stack completa da solução entregue. #preencher[versões do Docker e do browser, se pretenderem indicar]
+Ambiente dos testes automáticos: FFmpeg 6.1, Python 3.13 com Pillow e NumPy, Node.js 22. Testes manuais: Linux, browser Brave (Chromium), Docker Compose, com a stack completa da solução entregue.
 
 == Testes realizados
 
