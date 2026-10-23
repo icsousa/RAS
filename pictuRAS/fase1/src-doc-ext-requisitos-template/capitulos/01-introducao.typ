@@ -18,7 +18,7 @@ Este relatório *estende* os documentos de base; não os reescreve. Os elementos
   [Documento de requisitos de base], [doc-ext-requisitos.pdf (PictuRAS, Fase 1 de 2025/2026)],
   [Documento de solução arquitetural de base], [doc-sol-arquitetural.pdf],
   [Repositório de partida], [#link("https://github.com/picturas-um/picturas-27")[`github.com/picturas-um/picturas-27`] — _commit_ `781a63e`],
-  [Solução entregue], [PL3-G7.zip — #link("https://github.com/icsousa/RAS/pictuRAS/fase1/")[`github.com/icsousa/RAS/pictuRAS/fase1/`], ramo `main`],
+  [Solução entregue], [PL3-G7.zip — #link("https://github.com/icsousa/RAS/blob/main/pictuRAS/fase1/PL3-G7.zip")[`github.com/icsousa/RAS/pictuRAS/fase1/PL3-G7.zip`], ramo `main`],
 )
 
 == Resumo do trabalho realizado
