@@ -130,7 +130,7 @@ export const useAddProjectImages = (uid: string, pid: string, token: string, own
   const projectKey = ["project", uid, pid, token, ownerId, shareId];
 
   return useMutation({
-    mutationFn: (args: { images: File[]; projectVersion: number }) =>
+    mutationFn: (args: { images: File[]; projectVersion: number; onProgress?: (percent: number) => void }) =>
       addProjectImages({
         uid,
         pid,
@@ -139,6 +139,7 @@ export const useAddProjectImages = (uid: string, pid: string, token: string, own
         ownerId,
         shareId,
         projectVersion: args.projectVersion,
+        onProgress: args.onProgress,
       }),
 
     onSuccess: (newVersionHeader) => {

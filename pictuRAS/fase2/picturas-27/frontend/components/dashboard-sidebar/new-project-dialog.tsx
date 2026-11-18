@@ -7,6 +7,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 import { useEffect, useState } from "react";
@@ -33,17 +34,22 @@ export default function NewProjectDialog({
   const [open, setOpen] = useState<boolean>(false);
   const [name, setName] = useState<string>("");
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  // RNF-01: upload progress, as in the import dialog.
+  // Written with AI assistance (Claude) and reviewed by the group (PL3-G7).
+  const [progress, setProgress] = useState(0);
 
   const session = useSession();
   const addProject = useAddProject(session.user._id, session.token);
 
   function handleCreate() {
+    setProgress(0);
     addProject.mutate(
       {
         uid: session.user._id,
         token: session.token,
         name: name,
         images: imageFiles,
+        onProgress: setProgress,
       },
       {
         onSuccess: (project) => {
@@ -96,6 +102,14 @@ export default function NewProjectDialog({
           onFilesChange={setImageFiles}
           receivedFiles={files}
         />
+        {addProject.isPending && imageFiles.length > 0 && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Progress value={progress} className="h-2" />
+            <span className="w-24 text-right">
+              {progress < 100 ? `Uploading ${progress}%` : "Processing…"}
+            </span>
+          </div>
+        )}
         <DialogFooter>
           <Button
             onClick={() => handleCreate()}

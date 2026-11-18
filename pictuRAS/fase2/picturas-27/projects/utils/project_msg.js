@@ -19,12 +19,21 @@ const queues = {
     'expand_ai': 'expand_ai_queue',
     'watermark': 'watermark_queue',
     'video': 'video_queue',
+    // RNF-02: video previews have their own queue and worker, so they never
+    // wait behind full video jobs
+    'video_preview': 'video_preview_queue',
     'project': 'project_queue',
     'ws': 'ws_queue'
 }
 
+// Queue a tool message goes to (RNF-02: video previews go to their own queue)
+function queueFor(tool, params) {
+    if (tool === 'video' && params && params.preview) return queues['video_preview'];
+    return queues[tool];
+}
+
 function send_msg_tool(msg_id, timestamp, og_img_uri, new_img_uri, tool, params) {
-    const queue = queues[tool];
+    const queue = queueFor(tool, params);
     const msg = {
         "messageId": msg_id,
         "timestamp": timestamp,
@@ -109,4 +118,4 @@ function send_msg_project_op({ projectId, ownerId, op }) {
   send_rabbit_msg(msg, queue);
 }
 
-module.exports = { send_msg_tool, send_msg_client, send_msg_client_error, send_msg_client_preview, send_msg_client_preview_error, read_msg, send_msg_project_op };
+module.exports = { queueFor, send_msg_tool, send_msg_client, send_msg_client_error, send_msg_client_preview, send_msg_client_preview_error, read_msg, send_msg_project_op };

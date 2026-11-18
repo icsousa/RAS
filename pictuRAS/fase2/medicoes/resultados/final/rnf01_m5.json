@@ -1,0 +1,7 @@
+{
+  "metrica": "M5",
+  "quando": "2026-11-18",
+  "procedimento": "Upload manual de medicoes/videos/v500.mp4 no browser (utilizador premium), pelo diálogo Import e na criação de projeto",
+  "progresso_visivel": true,
+  "observacao": "Barra 'Uploading N%' e depois 'Processing…' nos dois diálogos. Na criação de projeto só depois do commit aba322d (complemento ao patch 0002)."
+}

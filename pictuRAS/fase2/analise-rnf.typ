@@ -122,7 +122,7 @@ O projects atual tem um salto deste tipo, e o apiGateway e o imageStorageService
   [M1 Pico de RAM adicional por carregamento], [MB acima do repouso, somando apiGateway, projects e imageStorageService], [`docker stats` a cada 0,5 s durante o carregamento de 100 MB, 500 MB e 1 GB, com 5 repetições; reporta-se a mediana], [A medir; previsão de 5–9 GB para 1 GB], [≤ 300 MB, sem crescer com o tamanho], [≤ 1 GB para um ficheiro de 1 GB],
   [M2 Tempo de carregamento ponta a ponta], [Segundos, do início do POST até ao 204], [Script com `curl` em loopback, ficheiro de 1 GB, 5 repetições], [A medir], [≤ base − 30 %], [≤ base (não piorar)],
   [M3 Carregamentos Premium de 1 GB em simultâneo sem falhas], [Número], [1, 2, 4 e 8 em paralelo, num contentor com limite de 2 GB; conta-se quantos terminam com 204], [A medir; previsão ≤ 1], [4], [2],
-  [M4 Rejeição de um ficheiro acima do limite], [Bytes lidos antes do erro 413/400], [Enviar 1,5 GB com o perfil free, cujo limite é 100 MB], [\~1,1 GB (o nginx lê até 1100m)], [≤ limite do perfil + 1 MB], [≤ 2 × limite do perfil],
+  [M4 Rejeição de um ficheiro acima do limite], [Bytes lidos antes do erro 413/400], [Enviar 300 MB com o perfil free, cujo limite é 100 MB (abaixo dos 1100m do nginx, que já recusa pelo `Content-Length` acima disso)], [A medir; previsão: os 300 MB inteiros], [≤ limite do perfil + 1 MB], [≤ 2 × limite do perfil],
   [M5 Progresso visível], [Sim/Não, e atualizações por segundo], [Teste manual no browser], [Não], [Sim, ≥ 1 atualização/s], [Sim],
 )
 
@@ -154,7 +154,7 @@ A capacidade de processamento de vídeo é fixa: um contentor, um consumidor e u
   [Uma única instância], [`docker-compose.yaml`, serviço `video_tool` (linha 256): sem `deploy.replicas` e sem limites de CPU ou memória], [Toda a carga de vídeo passa por um processo.],
   [Um vídeo de cada vez], [`Tools/video/video.py`: `basic_qos(prefetch_count=1)`, `BlockingConnection` e ack só no fim], [O processamento é em série. O próprio comentário diz "parallelism comes from replicas", mas não há réplicas.],
   [Pré-visualização e processamento na mesma fila], [`projects/routes/projects.js`, linhas 1112–1121 (`preview: true`) e 1630–1639 (`preview: false`); fila única `video_queue` em `project_msg.js`], [Uma pré-visualização de 3 s espera atrás de todos os vídeos completos que estejam à frente (bloqueio na cabeça da fila).],
-  [Legendas com Whisper no CPU], [`Tools/video/subtitles.py`: `speech_model()` carrega o modelo `small` em cada trabalho, com `WHISPER_CPU_THREADS=2`], [Um trabalho de legendas demora vários minutos para 10 min de vídeo e bloqueia todos os outros.],
+  [Legendas com Whisper no CPU], [`Tools/video/subtitles.py`: `speech_model()` carrega o modelo `small` uma vez por processo (`lru_cache`), com `WHISPER_CPU_THREADS=2`], [Um trabalho de legendas demora vários minutos para 10 min de vídeo e bloqueia todos os outros.],
   [Volume partilhado], [`image_data:/app/images` montado no projects e no `video_tool`; o projects descarrega os originais do S3 para o volume antes de publicar (linhas 1603–1620)], [As réplicas têm de estar no mesmo anfitrião. Com Docker Compose isto é aceitável, mas deve ficar escrito como limitação.],
   [Ligação com `heartbeat=0`], [`video.py`, `_connect`], [Se um worker ficar pendurado, o broker não o deteta; a mensagem fica presa até a ligação cair.],
 )
@@ -205,9 +205,8 @@ A recomendação é *B2 + B4*:
 - uma fila de pré-visualização com o seu próprio worker;
 - a fila de processamento com autoscaler entre 1 e 4 réplicas, cada uma com limite de CPU e memória.
 
-Três correções pequenas tornam o worker seguro para escalar:
+Duas correções pequenas tornam o worker seguro para escalar (o modelo Whisper já era carregado uma vez por processo):
 
-- carregar o modelo Whisper uma vez por processo;
 - ativar o heartbeat, com o processamento numa thread;
 - fazer _graceful shutdown_ quando o autoscaler remove uma réplica, sem ack, para a mensagem voltar à fila.
 

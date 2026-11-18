@@ -253,12 +253,17 @@ services:
       - image_data:/app/images
 
   # Video worker (ffmpeg isolated in the container)
+  # RNF-02: full video jobs. Starts with 1 replica; video_autoscaler adds
+  # replicas (copies of this container) while jobs are waiting.
   video_tool:
     build:
       context: ./Tools
       dockerfile: video/Dockerfile
     restart: on-failure
+    # time for a removed replica to close its connection (its job is requeued)
+    stop_grace_period: 30s
     environment:
+      VIDEO_QUEUE: video_queue
       VIDEO_PREVIEW_SECONDS: 3
       WHISPER_MODEL: small
       WHISPER_CACHE_DIR: /models/whisper
@@ -271,6 +276,57 @@ services:
     volumes:
       - image_data:/app/images
       - whisper_models:/models/whisper
+
+  # RNF-02: previews have their own queue and worker, so a 3 s preview never
+  # waits behind full video jobs
+  video_preview_tool:
+    build:
+      context: ./Tools
+      dockerfile: video/Dockerfile
+    restart: on-failure
+    stop_grace_period: 30s
+    environment:
+      VIDEO_QUEUE: video_preview_queue
+      VIDEO_PREVIEW_SECONDS: 3
+      WHISPER_MODEL: small
+      WHISPER_CACHE_DIR: /models/whisper
+      WHISPER_CPU_THREADS: 2
+    networks:
+      - elk
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - image_data:/app/images
+      - whisper_models:/models/whisper
+
+  # RNF-02: scales video_tool between MIN_REPLICAS and MAX_REPLICAS from the
+  # depth of video_queue (Tools/autoscaler/README.md)
+  video_autoscaler:
+    build:
+      context: ./Tools/autoscaler
+    restart: on-failure
+    environment:
+      COMPOSE_PROJECT: picturas
+      TARGET_SERVICE: video_tool
+      TARGET_QUEUE: video_queue
+      MIN_REPLICAS: 1
+      MAX_REPLICAS: 4
+      SCALE_IN_DELAY_S: 60
+      POLL_S: 5
+      RABBITMQ_API: http://rabbitmq:15672
+      RABBITMQ_USERNAME: user
+      RABBITMQ_PASSWORD: password
+    networks:
+      - elk
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      video_tool:
+        condition: service_started
+    volumes:
+      # needed to start and stop replicas (see the security note in the report)
+      - /var/run/docker.sock:/var/run/docker.sock
 
   border_tool:
     build:
