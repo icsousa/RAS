@@ -1,0 +1,34 @@
+## Ambiente (2026-11-18T15:24:59+00:00)
+Modelo: ASUSTeK COMPUTER INC. VivoBook_ASUSLaptop X515JAB_F515JA 
+CPU(s):                                    8
+CPU(s) MHz de escala:                      23%
+Mem:            11Gi       6,5Gi       389Mi       709Mi       5,5Gi       4,9Gi
+SO: "Manjaro Linux" kernel 7.2.9-1-MANJARO
+Client:
+ Version:           29.8.2
+ API version:       1.56
+ Go version:        go1.27.1-X:nodwarf5
+ Git commit:        7fc2dff9bc
+ Built:             Thu Oct  1 00:40:10 2026
+ OS/Arch:           linux/amd64
+ Context:           default
+
+Server:
+ Engine:
+  Version:          29.8.2
+  API version:      1.56 (minimum version 1.40)
+  Go version:       go1.27.1-X:nodwarf5
+  Git commit:       8af9fe3a36
+  Built:            Thu Oct  1 00:40:10 2026
+  OS/Arch:          linux/amd64
+  Experimental:     false
+ containerd:
+  Version:          v2.4.1
+  GitCommit:        f2551031d7276a770f65f98c9b52e57e7dad07e8.m
+ runc:
+  Version:          1.5.2
+  GitCommit:        
+ docker-init:
+  Version:          0.19.0
+  GitCommit:        de40ad0
+Docker: 8 CPUs, 12260540416 B, driver overlayfs, cgroup v2
