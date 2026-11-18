@@ -1,0 +1,361 @@
+{
+  "quando": "2026-11-18T19:43:45.685643",
+  "resumo": {
+    "v100.mp4": {
+      "m1_mediana_mb": 408.1,
+      "m2_mediana_s": 3.368924,
+      "ok": 5,
+      "n": 5
+    },
+    "v500.mp4": {
+      "m1_mediana_mb": 1049.9,
+      "m2_mediana_s": 13.472424,
+      "ok": 5,
+      "n": 5
+    },
+    "v1000.mp4": {
+      "m1_mediana_mb": 2252.8,
+      "m2_mediana_s": 25.455496,
+      "ok": 5,
+      "n": 5
+    }
+  },
+  "m4": {
+    "status": 400,
+    "tempo_s": 0.091363,
+    "bytes_enviados": 11337728,
+    "bytes_enviados_mb": 10.8
+  },
+  "execucoes": [
+    {
+      "ficheiro": "v100.mp4",
+      "mb": 93,
+      "status": 204,
+      "tempo_s": 4.215768,
+      "bytes_enviados": 97768850,
+      "por_servico": {
+        "api_gateway": {
+          "extra_mb": 47.2,
+          "fonte": "cgroup memory.peak"
+        },
+        "projects": {
+          "extra_mb": 204.3,
+          "fonte": "cgroup memory.peak"
+        },
+        "img_storage": {
+          "extra_mb": 156.6,
+          "fonte": "cgroup memory.peak"
+        }
+      },
+      "m1_extra_total_mb": 408.1
+    },
+    {
+      "ficheiro": "v100.mp4",
+      "mb": 93,
+      "status": 204,
+      "tempo_s": 3.638721,
+      "bytes_enviados": 97768850,
+      "por_servico": {
+        "api_gateway": {
+          "extra_mb": 44.2,
+          "fonte": "cgroup memory.peak"
+        },
+        "projects": {
+          "extra_mb": 191.2,
+          "fonte": "cgroup memory.peak"
+        },
+        "img_storage": {
+          "extra_mb": 180.8,
+          "fonte": "cgroup memory.peak"
+        }
+      },
+      "m1_extra_total_mb": 416.3
+    },
+    {
+      "ficheiro": "v100.mp4",
+      "mb": 93,
+      "status": 204,
+      "tempo_s": 3.368924,
+      "bytes_enviados": 97768850,
+      "por_servico": {
+        "api_gateway": {
+          "extra_mb": 43.7,
+          "fonte": "cgroup memory.peak"
+        },
+        "projects": {
+          "extra_mb": 185.0,
+          "fonte": "cgroup memory.peak"
+        },
+        "img_storage": {
+          "extra_mb": 180.4,
+          "fonte": "cgroup memory.peak"
+        }
+      },
+      "m1_extra_total_mb": 409.0
+    },
+    {
+      "ficheiro": "v100.mp4",
+      "mb": 93,
+      "status": 204,
+      "tempo_s": 3.360774,
+      "bytes_enviados": 97768850,
+      "por_servico": {
+        "api_gateway": {
+          "extra_mb": 41.3,
+          "fonte": "cgroup memory.peak"
+        },
+        "projects": {
+          "extra_mb": 166.8,
+          "fonte": "cgroup memory.peak"
+        },
+        "img_storage": {
+          "extra_mb": 175.5,
+          "fonte": "cgroup memory.peak"
+        }
+      },
+      "m1_extra_total_mb": 383.6
+    },
+    {
+      "ficheiro": "v100.mp4",
+      "mb": 93,
+      "status": 204,
+      "tempo_s": 3.182759,
+      "bytes_enviados": 97768850,
+      "por_servico": {
+        "api_gateway": {
+          "extra_mb": 39.4,
+          "fonte": "cgroup memory.peak"
+        },
+        "projects": {
+          "extra_mb": 168.6,
+          "fonte": "cgroup memory.peak"
+        },
+        "img_storage": {
+          "extra_mb": 197.1,
+          "fonte": "cgroup memory.peak"
+        }
+      },
+      "m1_extra_total_mb": 405.1
+    },
+    {
+      "ficheiro": "v500.mp4",
+      "mb": 489,
+      "status": 204,
+      "tempo_s": 13.411287,
+      "bytes_enviados": 512495138,
+      "por_servico": {
+        "api_gateway": {
+          "extra_mb": 45.5,
+          "fonte": "cgroup memory.peak"
+        },
+        "projects": {
+          "extra_mb": 494.1,
+          "fonte": "cgroup memory.peak"
+        },
+        "img_storage": {
+          "extra_mb": 418.1,
+          "fonte": "cgroup memory.peak"
+        }
+      },
+      "m1_extra_total_mb": 957.7
+    },
+    {
+      "ficheiro": "v500.mp4",
+      "mb": 489,
+      "status": 204,
+      "tempo_s": 13.472424,
+      "bytes_enviados": 512495138,
+      "por_servico": {
+        "api_gateway": {
+          "extra_mb": 46.9,
+          "fonte": "cgroup memory.peak"
+        },
+        "projects": {
+          "extra_mb": 473.4,
+          "fonte": "cgroup memory.peak"
+        },
+        "img_storage": {
+          "extra_mb": 582.1,
+          "fonte": "cgroup memory.peak"
+        }
+      },
+      "m1_extra_total_mb": 1102.4
+    },
+    {
+      "ficheiro": "v500.mp4",
+      "mb": 489,
+      "status": 204,
+      "tempo_s": 13.376457,
+      "bytes_enviados": 512495138,
+      "por_servico": {
+        "api_gateway": {
+          "extra_mb": 45.3,
+          "fonte": "cgroup memory.peak"
+        },
+        "projects": {
+          "extra_mb": 573.6,
+          "fonte": "cgroup memory.peak"
+        },
+        "img_storage": {
+          "extra_mb": 456.2,
+          "fonte": "cgroup memory.peak"
+        }
+      },
+      "m1_extra_total_mb": 1075.2
+    },
+    {
+      "ficheiro": "v500.mp4",
+      "mb": 489,
+      "status": 204,
+      "tempo_s": 14.043931,
+      "bytes_enviados": 512495138,
+      "por_servico": {
+        "api_gateway": {
+          "extra_mb": 47.5,
+          "fonte": "cgroup memory.peak"
+        },
+        "projects": {
+          "extra_mb": 559.5,
+          "fonte": "cgroup memory.peak"
+        },
+        "img_storage": {
+          "extra_mb": 442.8,
+          "fonte": "cgroup memory.peak"
+        }
+      },
+      "m1_extra_total_mb": 1049.9
+    },
+    {
+      "ficheiro": "v500.mp4",
+      "mb": 489,
+      "status": 204,
+      "tempo_s": 13.815865,
+      "bytes_enviados": 512495138,
+      "por_servico": {
+        "api_gateway": {
+          "extra_mb": 45.4,
+          "fonte": "cgroup memory.peak"
+        },
+        "projects": {
+          "extra_mb": 451.5,
+          "fonte": "cgroup memory.peak"
+        },
+        "img_storage": {
+          "extra_mb": 378.8,
+          "fonte": "cgroup memory.peak"
+        }
+      },
+      "m1_extra_total_mb": 875.7
+    },
+    {
+      "ficheiro": "v1000.mp4",
+      "mb": 977,
+      "status": 204,
+      "tempo_s": 25.26074,
+      "bytes_enviados": 1024716680,
+      "por_servico": {
+        "api_gateway": {
+          "extra_mb": 70.9,
+          "fonte": "cgroup memory.peak"
+        },
+        "projects": {
+          "extra_mb": 827.3,
+          "fonte": "cgroup memory.peak"
+        },
+        "img_storage": {
+          "extra_mb": 673.7,
+          "fonte": "cgroup memory.peak"
+        }
+      },
+      "m1_extra_total_mb": 1572.0
+    },
+    {
+      "ficheiro": "v1000.mp4",
+      "mb": 977,
+      "status": 204,
+      "tempo_s": 33.618981,
+      "bytes_enviados": 1024716680,
+      "por_servico": {
+        "api_gateway": {
+          "extra_mb": 67.9,
+          "fonte": "cgroup memory.peak"
+        },
+        "projects": {
+          "extra_mb": 1136.9,
+          "fonte": "cgroup memory.peak"
+        },
+        "img_storage": {
+          "extra_mb": 1149.8,
+          "fonte": "cgroup memory.peak"
+        }
+      },
+      "m1_extra_total_mb": 2354.6
+    },
+    {
+      "ficheiro": "v1000.mp4",
+      "mb": 977,
+      "status": 204,
+      "tempo_s": 25.455496,
+      "bytes_enviados": 1024716680,
+      "por_servico": {
+        "api_gateway": {
+          "extra_mb": 73.4,
+          "fonte": "cgroup memory.peak"
+        },
+        "projects": {
+          "extra_mb": 1104.5,
+          "fonte": "cgroup memory.peak"
+        },
+        "img_storage": {
+          "extra_mb": 1074.9,
+          "fonte": "cgroup memory.peak"
+        }
+      },
+      "m1_extra_total_mb": 2252.8
+    },
+    {
+      "ficheiro": "v1000.mp4",
+      "mb": 977,
+      "status": 204,
+      "tempo_s": 25.919871,
+      "bytes_enviados": 1024716680,
+      "por_servico": {
+        "api_gateway": {
+          "extra_mb": 68.2,
+          "fonte": "cgroup memory.peak"
+        },
+        "projects": {
+          "extra_mb": 1069.6,
+          "fonte": "cgroup memory.peak"
+        },
+        "img_storage": {
+          "extra_mb": 654.9,
+          "fonte": "cgroup memory.peak"
+        }
+      },
+      "m1_extra_total_mb": 1792.6
+    },
+    {
+      "ficheiro": "v1000.mp4",
+      "mb": 977,
+      "status": 204,
+      "tempo_s": 23.283942,
+      "bytes_enviados": 1024716680,
+      "por_servico": {
+        "api_gateway": {
+          "extra_mb": 46.2,
+          "fonte": "cgroup memory.peak"
+        },
+        "projects": {
+          "extra_mb": 1140.1,
+          "fonte": "cgroup memory.peak"
+        },
+        "img_storage": {
+          "extra_mb": 1086.2,
+          "fonte": "cgroup memory.peak"
+        }
+      },
+      "m1_extra_total_mb": 2272.5
+    }
+  ]
+}

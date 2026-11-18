@@ -1,0 +1,17 @@
+video_autoscaler-1  | 2026-11-18T19:27:39.697893112Z [autoscaler] 2026-11-18T19:27:39 watching video_queue -> video_tool (min=1, max=4, scale-in after 60 s idle)
+video_autoscaler-1  | 2026-11-18T19:45:00.338108875Z [autoscaler] 2026-11-18T19:45:00 ready=19 unacked=1 replicas=1 -> 4
+video_autoscaler-1  | 2026-11-18T19:45:01.189434786Z [autoscaler] 2026-11-18T19:45:01 started picturas-video_tool-2
+video_autoscaler-1  | 2026-11-18T19:45:01.732061937Z [autoscaler] 2026-11-18T19:45:01 started picturas-video_tool-3
+video_autoscaler-1  | 2026-11-18T19:45:02.312623497Z [autoscaler] 2026-11-18T19:45:02 started picturas-video_tool-4
+video_autoscaler-1  | 2026-11-18T19:56:39.513618362Z [autoscaler] 2026-11-18T19:56:39 ready=0 unacked=0 replicas=4 -> 1
+video_autoscaler-1  | 2026-11-18T19:56:40.111016022Z [autoscaler] 2026-11-18T19:56:40 removed picturas-video_tool-4
+video_autoscaler-1  | 2026-11-18T19:56:40.397185915Z [autoscaler] 2026-11-18T19:56:40 removed picturas-video_tool-3
+video_autoscaler-1  | 2026-11-18T19:56:40.686122909Z [autoscaler] 2026-11-18T19:56:40 removed picturas-video_tool-2
+video_autoscaler-1  | 2026-11-18T20:15:22.797228766Z [autoscaler] 2026-11-18T20:15:22 ready=19 unacked=1 replicas=1 -> 4
+video_autoscaler-1  | 2026-11-18T20:15:23.844262979Z [autoscaler] 2026-11-18T20:15:23 started picturas-video_tool-2
+video_autoscaler-1  | 2026-11-18T20:15:24.540620439Z [autoscaler] 2026-11-18T20:15:24 started picturas-video_tool-3
+video_autoscaler-1  | 2026-11-18T20:15:25.230669973Z [autoscaler] 2026-11-18T20:15:25 started picturas-video_tool-4
+video_autoscaler-1  | 2026-11-18T20:27:33.224626832Z [autoscaler] 2026-11-18T20:27:33 ready=0 unacked=0 replicas=4 -> 1
+video_autoscaler-1  | 2026-11-18T20:27:33.940903232Z [autoscaler] 2026-11-18T20:27:33 removed picturas-video_tool-4
+video_autoscaler-1  | 2026-11-18T20:27:34.221117152Z [autoscaler] 2026-11-18T20:27:34 removed picturas-video_tool-3
+video_autoscaler-1  | 2026-11-18T20:27:34.533407093Z [autoscaler] 2026-11-18T20:27:34 removed picturas-video_tool-2

@@ -1,0 +1,84 @@
+{
+  "quando": "2026-11-18T20:11:14.883708",
+  "m3": 4,
+  "niveis": {
+    "1": {
+      "ok": 1,
+      "estados": [
+        204
+      ],
+      "tempos_s": [
+        23.988368
+      ],
+      "estado_servicos": {
+        "api_gateway": "Up 32 seconds",
+        "projects": "Up 32 seconds",
+        "img_storage": "Up 32 seconds"
+      }
+    },
+    "2": {
+      "ok": 2,
+      "estados": [
+        204,
+        204
+      ],
+      "tempos_s": [
+        39.417847,
+        39.423975
+      ],
+      "estado_servicos": {
+        "api_gateway": "Up 48 seconds",
+        "projects": "Up 48 seconds",
+        "img_storage": "Up 48 seconds"
+      }
+    },
+    "4": {
+      "ok": 4,
+      "estados": [
+        204,
+        204,
+        204,
+        204
+      ],
+      "tempos_s": [
+        79.674546,
+        79.572434,
+        79.125494,
+        79.713132
+      ],
+      "estado_servicos": {
+        "api_gateway": "Up About a minute",
+        "projects": "Up About a minute",
+        "img_storage": "Up About a minute"
+      }
+    },
+    "8": {
+      "ok": 0,
+      "estados": [
+        504,
+        504,
+        504,
+        504,
+        504,
+        504,
+        504,
+        504
+      ],
+      "tempos_s": [
+        137.549697,
+        137.107293,
+        135.709865,
+        136.344739,
+        137.349956,
+        136.051843,
+        137.385865,
+        136.937362
+      ],
+      "estado_servicos": {
+        "api_gateway": "Up 7 minutes",
+        "projects": "Up 7 minutes",
+        "img_storage": "Up 7 minutes"
+      }
+    }
+  }
+}
