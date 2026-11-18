@@ -238,11 +238,15 @@ export const addProject = async ({
   token,
   name,
   images = [],
+  onProgress,
 }: {
   uid: string;
   token: string;
   name: string;
   images?: File[];
+  // RNF-01: upload progress when the project is created with media.
+  // Written with AI assistance (Claude) and reviewed by the group (PL3-G7).
+  onProgress?: (percent: number) => void;
 }) => {
   const response = await api.post<SingleProject>(
     `/projects/${uid}`,
@@ -262,6 +266,7 @@ export const addProject = async ({
       token,
       images,
       projectVersion: project.version,
+      onProgress,
     });
   }
 
