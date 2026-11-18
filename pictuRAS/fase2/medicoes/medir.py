@@ -126,6 +126,29 @@ def compose(*args, capture=True):
     return subprocess.run(["docker", "compose", *args], capture_output=capture, text=True)
 
 
+def reiniciar_servicos_upload(uid, token):
+    """Restart the upload services, then nginx, and wait until the API answers.
+
+    nginx resolves `api_gateway` only at startup; a restarted container may get
+    a new IP, so nginx must be restarted too or it answers 502.
+    Written with AI assistance (Claude) and reviewed by the group (PL3-G7).
+    """
+    compose("restart", *SERVICOS_UPLOAD)
+    compose("restart", "nginx")
+    limite = agora() + 120
+    while agora() < limite:
+        try:
+            # listing the user's projects goes through nginx, gateway and projects
+            st = api("GET", f"/projects/{uid}", token=token)[0]
+        except Exception:  # noqa: BLE001 - connection refused while starting
+            st = 0
+        if st == 200:
+            time.sleep(5)  # let img_storage finish connecting too
+            return
+        time.sleep(1)
+    sys.exit("A stack não voltou a responder depois do reinício.")
+
+
 def contentores(servico):
     return [c for c in compose("ps", "-q", servico).stdout.split() if c]
 
@@ -215,8 +238,7 @@ def cmd_videos(_):
 # ---------------------------------------------------------------- RNF-01
 def medir_um_upload(uid, token, ficheiro, reiniciar):
     if reiniciar:
-        compose("restart", *SERVICOS_UPLOAD)
-        time.sleep(8)
+        reiniciar_servicos_upload(uid, token)
     ids = {s: contentores(s)[0] for s in SERVICOS_UPLOAD}
     repouso = {s: mem_cgroup(c, "memory.current") for s, c in ids.items()}
     amost = AmostradorStats(list(ids.values()))
@@ -282,8 +304,7 @@ def cmd_concorrencia(a):
     uid, token = criar_utilizador("premium")
     res = {}
     for n in a.niveis:
-        compose("restart", *SERVICOS_UPLOAD)
-        time.sleep(8)
+        reiniciar_servicos_upload(uid, token)
         pids = [criar_projeto(uid, token) for _ in range(n)]
         log(f"M3: {n} carregamentos de 1 GB em paralelo")
         with cf.ThreadPoolExecutor(n) as ex:
