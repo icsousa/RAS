@@ -1,0 +1,13 @@
+{
+  "metrica": "M1 (complementar)",
+  "quando": "2026-11-18",
+  "motivo": "memory.peak do cgroup inclui a cache de página (ficheiros escritos/lidos), que o kernel pode libertar. Com streaming para ficheiro temporário isso faz M1 crescer com o tamanho sem ser memória dos processos.",
+  "procedimento": "1 upload de v1000.mp4 (status 204, 30,5 s); memory.stat de cada contentor amostrado em contínuo; máximo acima do repouso de anon (memória dos processos) e file (cache de página).",
+  "max_acima_repouso_mb": {
+    "api_gateway": {"anon": 25, "file": 0},
+    "projects": {"anon": 40, "file": 1033},
+    "img_storage": {"anon": 125, "file": 977}
+  },
+  "anon_total_mb": 190,
+  "nota": "Na base a memória extra era anon (buffers Node), o que levou a OOM global com 1 GB; na final o M3 passa 4 x 1 GB com 2 GB por serviço, coerente com a cache ser recuperável."
+}
