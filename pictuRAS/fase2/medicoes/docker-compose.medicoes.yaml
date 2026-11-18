@@ -1,0 +1,11 @@
+# Override usado só na medição M3 (RNF-01): limita a memória dos três serviços
+# por onde passa o upload, para que um excesso de memória se traduza em falha
+# (OOM) em vez de usar toda a RAM do portátil.
+#   docker compose -f docker-compose.yaml -f ../medicoes/docker-compose.medicoes.yaml up -d
+services:
+  api_gateway:
+    mem_limit: 2g
+  projects:
+    mem_limit: 2g
+  img_storage:
+    mem_limit: 2g
