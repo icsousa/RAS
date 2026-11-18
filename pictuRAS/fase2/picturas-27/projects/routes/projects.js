@@ -58,6 +58,9 @@ const {
   isVideoMedia,
   videoOutputName,
   probeVideoBuffer,
+  probeVideoFile,
+  uploadLimitBytes,
+  sizeLimitMessage,
   validateVideo,
   imageTools,
   videoPipeline,
@@ -68,6 +71,13 @@ const {
 } = require("../utils/video");
 const { persistFrameResults } = require("../utils/frameResults");
 const { dispatchProcessBatch } = require("../utils/processBatch");
+const {
+  exceedsLimit,
+  diskUpload,
+  sha256Upload,
+  uploadBody,
+  removeUpload,
+} = require("../utils/mediaUpload");
 
 const storage = multer.memoryStorage();
 var upload = multer({ storage: storage });
@@ -1267,7 +1277,7 @@ router.post("/:user/:project/preview/:img", checkSharePermission, requireEditPer
 // Shared upload logic for project media (images and videos).
 // `kind` is "image" or "video"; each endpoint only accepts its own kind.
 function addProjectMedia(kind) {
-  return async (req, res) => {
+  const handler = async (req, res) => {
     console.log(`PROJECTS-MS /:user/:project/${kind === "video" ? "video" : "img"} HIT, file =`, !!req.file);
     if (!req.file) {
       res.status(400).jsonp("No file found");
@@ -1282,7 +1292,7 @@ function addProjectMedia(kind) {
       return res.status(400).jsonp("Only video files (.mp4, .mov, .webm) can be uploaded here.");
     }
 
-    Project.getOne(req.params.user, req.params.project)
+    return Project.getOne(req.params.user, req.params.project)
       .then(async (project) => {
         const same_name_img = project.imgs.filter(
           (i) => path.basename(i.og_uri) == req.file.originalname
@@ -1299,14 +1309,13 @@ function addProjectMedia(kind) {
         const isVideo = kind === "video";
         let videoMeta = null;
         if (isVideo) {
-          let userType = "anonymous";
-          try {
-            const r = await axios.get(users_ms + `${getCallerId(req)}/type`, { httpsAgent });
-            userType = r.data.type;
-          } catch (_) {}
+          // RNF-01: the profile was already looked up by videoUploadGuard
+          const userType = req.uploaderType || (await getUserType(req));
 
           try {
-            videoMeta = await probeVideoBuffer(req.file.buffer, req.file.originalname);
+            videoMeta = req.file.path
+              ? await probeVideoFile(req.file.path, req.file.size)
+              : await probeVideoBuffer(req.file.buffer, req.file.originalname);
           } catch (e) {
             return res.status(400).jsonp(e.message);
           }
@@ -1319,9 +1328,11 @@ function addProjectMedia(kind) {
 
         try {
           const data = new FormData();
-          data.append("file", req.file.buffer, {
+          // RNF-01: a read stream when the upload is on disk
+          data.append("file", uploadBody(req.file), {
             filename: req.file.originalname,
             contentType: req.file.mimetype,
+            knownLength: req.file.size,
           });
           const resp = await post_image(
             req.params.user,
@@ -1339,8 +1350,7 @@ function addProjectMedia(kind) {
             const out_name = isVideo ? videoOutputName(req.file.originalname) : req.file.originalname;
             const new_uri = `./images/users/${req.params.user}/projects/${req.params.project}/out/${out_name}`;
 
-            const crypto = require("crypto");
-            const sha = crypto.createHash("sha256").update(req.file.buffer).digest("hex");
+            const sha = await sha256Upload(req.file);
 
             // Insert new image
             project["imgs"].push({
@@ -1379,6 +1389,53 @@ function addProjectMedia(kind) {
       })
       .catch((_) => res.status(501).jsonp(`Error acquiring user's project`));
   };
+
+  // RNF-01: the temporary upload file is removed whatever the outcome
+  return async (req, res) => {
+    try {
+      await handler(req, res);
+    } finally {
+      removeUpload(req.file);
+    }
+  };
+}
+
+async function getUserType(req) {
+  try {
+    const r = await axios.get(users_ms + `${getCallerId(req)}/type`, { httpsAgent });
+    return r.data.type;
+  } catch (_) {
+    return "anonymous";
+  }
+}
+
+// RNF-01: receives a video without keeping it in memory. The profile limit is
+// known before reading the body, so an oversized request is refused from its
+// Content-Length, and multer stops writing to disk as soon as the file passes
+// the limit. The answers keep the codes and messages used before.
+async function videoUploadGuard(req, res, next) {
+  const userType = await getUserType(req);
+  req.uploaderType = userType;
+  const maxBytes = uploadLimitBytes(userType);
+
+  if (!maxBytes) {
+    res.set("Connection", "close");
+    return res.status(400).jsonp("Anonymous users cannot upload videos. Create an account to edit video.");
+  }
+  if (exceedsLimit(req.headers["content-length"], maxBytes)) {
+    res.set("Connection", "close");
+    return res.status(400).jsonp(sizeLimitMessage(Number(req.headers["content-length"]), userType));
+  }
+
+  diskUpload("video", maxBytes)(req, res, (err) => {
+    if (!err) return next();
+    removeUpload(req.file);
+    res.set("Connection", "close");
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).jsonp(sizeLimitMessage(maxBytes + 1, userType));
+    }
+    return res.status(400).jsonp("Invalid upload");
+  });
 }
 
 // Add new image to a project
@@ -1389,7 +1446,7 @@ router.post(
 
 // Add new video to a project
 router.post(
-  "/:user/:project/video", checkSharePermission, requireEditPermission, enforcePresenceLimit, requireProjectVersion, upload.single("video"),
+  "/:user/:project/video", checkSharePermission, requireEditPermission, enforcePresenceLimit, requireProjectVersion, videoUploadGuard,
   addProjectMedia("video")
 );
 

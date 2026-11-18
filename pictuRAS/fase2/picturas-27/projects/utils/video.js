@@ -80,34 +80,57 @@ function ffprobe(filePath) {
   });
 }
 
+// Turns ffprobe's output into the metadata stored with the video
+function metaFromProbe(data, sizeBytes) {
+  const streams = data.streams || [];
+  const video = streams.find((s) => s.codec_type === "video");
+  const audio = streams.find((s) => s.codec_type === "audio");
+  if (!video) throw new Error("The file has no video stream");
+
+  const duration = parseFloat((data.format || {}).duration || video.duration || "0");
+  const [n, d] = String(video.avg_frame_rate || video.r_frame_rate || "0/1").split("/");
+  const fps = parseFloat(d) ? parseFloat(n) / parseFloat(d) : 0;
+
+  return {
+    duration,
+    width: video.width,
+    height: video.height,
+    fps: Math.round(fps * 100) / 100,
+    video_codec: video.codec_name,
+    audio_codec: audio ? audio.codec_name : null,
+    format_name: (data.format || {}).format_name,
+    size_bytes: sizeBytes,
+  };
+}
+
+// RNF-01: reads the characteristics of a video already on disk (the upload
+// is streamed to a temporary file, so there is no extra copy to write).
+async function probeVideoFile(filePath, sizeBytes) {
+  const size = Number.isFinite(sizeBytes) ? sizeBytes : fs.statSync(filePath).size;
+  return metaFromProbe(await ffprobe(filePath), size);
+}
+
 // Reads the characteristics of an in-memory video
 async function probeVideoBuffer(buffer, originalname) {
   const tmp = path.join(os.tmpdir(), `${uuidv4()}${path.extname(originalname || ".mp4")}`);
   fs.writeFileSync(tmp, buffer);
   try {
-    const data = await ffprobe(tmp);
-    const streams = data.streams || [];
-    const video = streams.find((s) => s.codec_type === "video");
-    const audio = streams.find((s) => s.codec_type === "audio");
-    if (!video) throw new Error("The file has no video stream");
-
-    const duration = parseFloat((data.format || {}).duration || video.duration || "0");
-    const [n, d] = String(video.avg_frame_rate || video.r_frame_rate || "0/1").split("/");
-    const fps = parseFloat(d) ? parseFloat(n) / parseFloat(d) : 0;
-
-    return {
-      duration,
-      width: video.width,
-      height: video.height,
-      fps: Math.round(fps * 100) / 100,
-      video_codec: video.codec_name,
-      audio_codec: audio ? audio.codec_name : null,
-      format_name: (data.format || {}).format_name,
-      size_bytes: buffer.length,
-    };
+    return await probeVideoFile(tmp, buffer.length);
   } finally {
     fs.rmSync(tmp, { force: true });
   }
+}
+
+// RNF-01: largest video (in bytes) the profile may upload; 0 = not allowed
+function uploadLimitBytes(userType) {
+  const limits = VIDEO_LIMITS[userType];
+  return limits ? limits.maxSizeMB * 1024 * 1024 : 0;
+}
+
+// Same wording validateVideo uses for an oversized file
+function sizeLimitMessage(sizeBytes, userType) {
+  const limits = VIDEO_LIMITS[userType];
+  return `The video is ${(sizeBytes / 1048576).toFixed(1)} MB and your profile limit is ${limits.maxSizeMB} MB`;
 }
 
 // Validates a video against the accepted formats and the profile limits.
@@ -131,8 +154,8 @@ function validateVideo(meta, originalname, mimetype, userType) {
   if (meta.duration > limits.maxDurationS) {
     return `The video is ${meta.duration.toFixed(1)} s long and your profile limit is ${limits.maxDurationS} s`;
   }
-  if (meta.size_bytes > limits.maxSizeMB * 1024 * 1024) {
-    return `The video is ${(meta.size_bytes / 1048576).toFixed(1)} MB and your profile limit is ${limits.maxSizeMB} MB`;
+  if (meta.size_bytes > uploadLimitBytes(userType)) {
+    return sizeLimitMessage(meta.size_bytes, userType);
   }
   const longSide = Math.max(meta.width, meta.height);
   const shortSide = Math.min(meta.width, meta.height);
@@ -217,6 +240,9 @@ module.exports = {
   isVideoMedia,
   videoOutputName,
   probeVideoBuffer,
+  probeVideoFile,
+  uploadLimitBytes,
+  sizeLimitMessage,
   validateVideo,
   imageTools,
   videoPipeline,

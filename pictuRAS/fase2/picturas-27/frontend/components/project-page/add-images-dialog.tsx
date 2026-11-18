@@ -11,6 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import ImageSubmissionArea from "../image-submission-area";
 import { LoaderCircle, Plus } from "lucide-react";
 import { useAddProjectImages } from "@/lib/mutations/projects";
@@ -25,6 +26,8 @@ export function AddImagesDialog() {
   const [open, setOpen] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  // RNF-01: upload progress, so large videos do not look stuck
+  const [progress, setProgress] = useState(0);
   const { toast } = useToast();
 
   const { _id: pid, version} = useProjectInfo();
@@ -53,10 +56,12 @@ export function AddImagesDialog() {
   }
 
   function handleAdd() {
+    setProgress(0);
     addImages.mutate(
       {
         images: imageFiles,
         projectVersion: version,
+        onProgress: setProgress,
       },
       {
         onSuccess: () => {
@@ -92,6 +97,14 @@ export function AddImagesDialog() {
           </DialogDescription>
         </DialogHeader>
         <ImageSubmissionArea onDrop={onDrop} />
+        {addImages.isPending && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Progress value={progress} className="h-2" />
+            <span className="w-24 text-right">
+              {progress < 100 ? `Uploading ${progress}%` : "Processing…"}
+            </span>
+          </div>
+        )}
         <DialogFooter>
           <Button
             onClick={handleAdd}

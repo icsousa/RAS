@@ -451,6 +451,7 @@ export const addProjectImages = async ({
   ownerId,
   shareId,
   projectVersion,
+  onProgress,
 }: {
   uid: string;
   pid: string;
@@ -459,10 +460,14 @@ export const addProjectImages = async ({
   ownerId?: string;
   shareId?: string;
   projectVersion: number;
+  // RNF-01: upload progress of all files together, 0-100
+  onProgress?: (percent: number) => void;
 }) => {
   const query = buildQuery({ ownerId, shareId });
 
   let lastVersion: string | undefined;
+  const totalBytes = images.reduce((sum, f) => sum + f.size, 0) || 1;
+  let sentBefore = 0;
 
   for (const image of images) {
     // Videos go to their own endpoint
@@ -476,10 +481,16 @@ export const addProjectImages = async ({
         "Content-Type": "multipart/form-data",
         "X-Project-Version": String(projectVersion),
       },
+      onUploadProgress: (e) => {
+        if (!onProgress) return;
+        const loaded = Math.min(e.loaded, image.size);
+        onProgress(Math.round(((sentBefore + loaded) / totalBytes) * 100));
+      },
     });
 
     if (response.status < 200 || response.status >= 300)
       throw new Error("Failed to upload image: " + image.name);
+    sentBefore += image.size;
 
     //  se backend devolver nova versão a cada upload
     lastVersion = response.headers?.["x-project-version"];

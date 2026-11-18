@@ -455,46 +455,54 @@ router.post(
  * @file Video to be added (.mp4, .mov, .webm)
  * @returns Post answer structure in case of success
  */
+// RNF-01: the multipart body is streamed straight to the projects service.
+// The gateway no longer parses or buffers the file (it used to keep it in
+// memory with multer and copy it again into a FormData), and the token is
+// checked before any byte of the body is read.
 router.post(
   "/:user/:project/video",
-  upload.single("video"),
   auth.checkToken,
   function (req, res, next) {
     const ownerId = req.query.owner || req.params.user;
     const callerId = req.authUserId || req.params.user;
 
-    const data = new FormData();
-    data.append("video", req.file.buffer, {
-      filename: req.file.originalname,
-      contentType: req.file.mimetype,
-    });
+    const headers = {
+      "Content-Type": req.headers["content-type"],
+      Authorization: req.headers["authorization"],
+      "X-Project-Version": req.headers["x-project-version"],
+      "X-Caller-Id": callerId,
+    };
+    if (req.headers["content-length"]) headers["Content-Length"] = req.headers["content-length"];
 
-    axios
-      .post(
-        projectsURL + `${ownerId}/${req.params.project}/video`,
-        data,
-        {
-          headers: {
-            ...data.getHeaders(),                     
-            Authorization: req.headers["authorization"], 
-            "X-Project-Version": req.headers["x-project-version"],
-            "X-Caller-Id": callerId,
-          },
-          httpsAgent: httpsAgent,
-          params: req.query.share ? { share: req.query.share } : undefined, 
-          // Videos can be hundreds of MB
-          maxBodyLength: Infinity,
-          maxContentLength: Infinity,
-        }
-      )
+    const upstream = axios.post(
+      projectsURL + `${ownerId}/${req.params.project}/video`,
+      req,
+      {
+        headers,
+        httpsAgent: httpsAgent,
+        params: req.query.share ? { share: req.query.share } : undefined,
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+        // follow-redirects keeps a copy of the whole body to replay it on a
+        // redirect; with no redirects axios streams through plain https.
+        maxRedirects: 0,
+      }
+    );
+
+    upstream
       .then((resp) => {
         if (resp.headers?.["x-project-version"]) {
           res.set("X-Project-Version", resp.headers["x-project-version"]);
         }
         return res.sendStatus(204);
       })
-    .catch((err) => forwardAxiosError(res, err, "mensagem fallback"))
-
+      .catch((err) => {
+        // The projects service may answer before the whole body arrived
+        // (e.g. file over the profile limit): close the connection so the
+        // client stops sending the rest of the file.
+        res.set("Connection", "close");
+        forwardAxiosError(res, err, "mensagem fallback");
+      });
   }
 );
 

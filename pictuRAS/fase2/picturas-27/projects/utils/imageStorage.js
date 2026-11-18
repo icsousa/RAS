@@ -26,12 +26,25 @@ async function get_image_public_url(user, project, type, img) {
   );
 }
 
+// Multipart headers, with Content-Length when every part has a known size
+function formHeaders(form) {
+  if (!form.getHeaders) return undefined;
+  const headers = form.getHeaders();
+  try {
+    headers["Content-Length"] = form.getLengthSync();
+  } catch (_) {
+    // a stream without knownLength: sent chunked
+  }
+  return headers;
+}
+
 async function post_image(user, project, type, file) {
   return await axios.post(
     `${img_storage_ms}/upload/${user}/${project}/${type}`,
     file /* , { httpsAgent: httpsAgent } */,
-    // Videos can be hundreds of MB
-    { maxBodyLength: Infinity, maxContentLength: Infinity, headers: file.getHeaders ? file.getHeaders() : undefined },
+    // Videos can be hundreds of MB. RNF-01: no redirects, so axios streams
+    // the form instead of follow-redirects keeping a copy of the whole body.
+    { maxBodyLength: Infinity, maxContentLength: Infinity, maxRedirects: 0, headers: formHeaders(file) },
   );
 }
 
