@@ -1,0 +1,8 @@
+{
+  "metrica": "E3",
+  "motivo": "O resumo original contava as pré-visualizações (a linha `ok` do worker não indica preview). Recalculado a partir de eventos_worker em rnf02_elasticidade.json, classificando por prefixo `preview-` do id da mensagem, o mesmo critério do medir.py corrigido usado na final.",
+  "trabalhos_processamento_concluidos": 20,
+  "duracao_s": 1266,
+  "E3_debito_videos_por_min": 0.95,
+  "nota_E4": "Na base as 10 pré-visualizações chegaram todas ao worker (nenhum acerto na cache de previews), por isso E4 não é afetado pela correção do brilho único por projeto."
+}

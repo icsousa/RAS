@@ -340,13 +340,13 @@ def filas_video():
     return filas
 
 
-def preparar_projeto_video(uid, token, video):
+def preparar_projeto_video(uid, token, video, brilho=1.2):
     pid = criar_projeto(uid, token)
     r = upload_curl(uid, pid, token, video, versao(uid, pid, token))
     if r["status"] not in (200, 201, 204):
         sys.exit(f"Falha no upload do vídeo de teste: {r}")
     st, t, _ = api("POST", f"/projects/{uid}/{pid}/tool",
-                   {"procedure": "brightness", "params": {"brightness": 1.2}}, token,
+                   {"procedure": "brightness", "params": {"brightness": brilho}}, token,
                    {"X-Project-Version": str(versao(uid, pid, token))})
     if st not in (200, 201):
         sys.exit(f"Falha a adicionar ferramenta ({st}): {t}")
@@ -354,12 +354,46 @@ def preparar_projeto_video(uid, token, video):
     return pid, p["imgs"][0]["_id"]
 
 
-def logs_video(desde):
-    """Linhas `[video] msg=... preview=...` e `ok` de todos os serviços de vídeo."""
-    servicos = [s for s in compose("config", "--services").stdout.split() if s.startswith("video")]
+class ColetorLogs(threading.Thread):
+    """Keeps a copy of the logs of every video container while it exists.
+
+    The autoscaler removes extra replicas when the queue empties, and their logs
+    go with them, so reading the logs only at the end misses their jobs.
+    Written with AI assistance (Claude) and reviewed by the group (PL3-G7).
+    """
+
+    def __init__(self, desde, intervalo=3):
+        super().__init__(daemon=True)
+        self.desde, self.intervalo = desde, intervalo
+        self.textos, self.parar = {}, threading.Event()
+
+    def recolher(self):
+        nomes = subprocess.run(["docker", "ps", "--filter", "name=video", "--format", "{{.Names}}"],
+                               capture_output=True, text=True).stdout.split()
+        for n in nomes:
+            r = subprocess.run(["docker", "logs", "--timestamps", "--since", self.desde, n],
+                               capture_output=True, text=True)
+            if r.returncode == 0:
+                self.textos[n] = r.stdout + r.stderr
+
+    def run(self):
+        while not self.parar.wait(self.intervalo):
+            self.recolher()
+
+    def terminar(self):
+        self.parar.set()
+        self.join()
+        self.recolher()
+        return self.textos
+
+
+def logs_video(textos):
+    """Linhas `[video] msg=... preview=...` e `ok` dos contentores de vídeo.
+
+    A pré-visualização identifica-se pelo prefixo `preview-` do id da mensagem,
+    porque a linha `ok` não diz se o trabalho era uma pré-visualização."""
     eventos = []
-    for s in servicos:
-        out = compose("logs", "--no-log-prefix", "--timestamps", "--since", desde, s).stdout
+    for s, out in textos.items():
         for linha in out.splitlines():
             m = re.match(r"(\S+)\s+\[video\] msg=(\S+) (preview=(\w+)|ok)", linha)
             if not m:
@@ -368,7 +402,7 @@ def logs_video(desde):
                 tzinfo=dt.timezone.utc).timestamp()
             tipo = "fim" if m.group(3) == "ok" else "inicio"
             eventos.append({"t": ts, "msg": m.group(2), "tipo": tipo,
-                            "preview": m.group(4) == "True", "servico": s})
+                            "preview": m.group(2).startswith("preview-"), "servico": s})
     return sorted(eventos, key=lambda e: e["t"])
 
 
@@ -379,7 +413,10 @@ def cmd_elasticidade(a):
     uid, token = criar_utilizador("premium")
     log(f"a preparar {a.trabalhos} projetos de processamento e {a.previews} de pré-visualização…")
     proc = [preparar_projeto_video(uid, token, video) for _ in range(a.trabalhos)]
-    prev = [preparar_projeto_video(uid, token, video) for _ in range(a.previews)]
+    # each preview project gets a slightly different brightness, so every
+    # request misses the preview cache (same video + tools = same cache key)
+    prev = [preparar_projeto_video(uid, token, video, round(1.2 + 0.01 * (i + 1), 2))
+            for i in range(a.previews)]
     log("à espera que a fila esteja vazia e o número de workers estabilize (30 s)…")
     time.sleep(30)
 
@@ -396,6 +433,8 @@ def cmd_elasticidade(a):
     th = threading.Thread(target=amostrar, daemon=True)
     th.start()
     desde = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    coletor = ColetorLogs(desde)
+    coletor.start()
     t0 = agora()
 
     def processar(par):
@@ -435,7 +474,7 @@ def cmd_elasticidade(a):
         capture_output=True, text=True).stdout.splitlines()
     repouso = [s.split(";") for s in stats if "video" in s]
 
-    ev = logs_video(desde)
+    ev = logs_video(coletor.terminar())
     fins = [e for e in ev if e["tipo"] == "fim" and not e["preview"]]
     inicios_prev = [e for e in ev if e["tipo"] == "inicio" and e["preview"]]
     consumidores = [(p["t"], sum(q["consumidores"] for n, q in p["filas"].items()
@@ -450,8 +489,8 @@ def cmd_elasticidade(a):
 
     resumo = {
         "E1_expansao_s": round(t_exp - t0, 1) if t_exp else "não escala",
-        "E2_contracao_s": round(t_contr - t_vazia, 1) if t_contr else
-        ("não aplicável (fixo)" if c_max == c_min else f"> {a.repouso}"),
+        "E2_contracao_s": ("não aplicável (fixo)" if c_max == c_min else
+                           round(t_contr - t_vazia, 1) if t_contr else f"> {a.repouso}"),
         "E3_debito_videos_por_min": round(len(fins) / duracao * 60, 2) if duracao else None,
         "E3_trabalhos_concluidos": len(fins),
         "E4_espera_preview_s": esperas,
