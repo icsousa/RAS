@@ -284,8 +284,17 @@ def cmd_upload(a):
             resumo[nome] = {"m1_mediana_mb": statistics.median(r["m1_extra_total_mb"] for r in rs),
                             "m2_mediana_s": statistics.median(r["tempo_s"] for r in rs),
                             "ok": len(rs), "n": a.repeticoes}
+        else:  # no run succeeded (e.g. OOM): keep it visible in the summary
+            resumo[nome] = {"ok": 0, "n": a.repeticoes,
+                            "estados": [r["status"] for r in resultados if r["ficheiro"] == nome]}
+    # Save M1/M2 before M4, so a failure there does not lose them
+    guardar(a.etiqueta, "rnf01_upload.json",
+            {"quando": dt.datetime.now().isoformat(), "resumo": resumo, "m4": None,
+             "execucoes": resultados})
     # M4: 300 MB enviados por um utilizador free (limite 100 MB); abaixo dos
-    # 1100m do nginx, que já recusa pelo Content-Length acima disso
+    # 1100m do nginx, que já recusa pelo Content-Length acima disso.
+    # Restart first: a previous OOM may have left the gateway down.
+    reiniciar_servicos_upload(uid, token)
     log("M4: 300 MB com o perfil free")
     fuid, ftoken = criar_utilizador("free")
     fpid = criar_projeto(fuid, ftoken)
