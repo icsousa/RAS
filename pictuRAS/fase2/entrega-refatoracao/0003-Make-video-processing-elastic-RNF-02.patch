@@ -1,0 +1,837 @@
+From c9e33a8c12eb09217e9beaff065408bba6ae8c51 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 18 Nov 2026 15:00:44 +0000
+Subject: [PATCH 3/3] Make video processing elastic (RNF-02)
+
+Previews get their own queue and worker. A new video_autoscaler adds
+video_tool replicas while jobs wait and removes them when the queue is
+idle. The worker runs jobs in a thread with heartbeats on and leaves
+cleanly on SIGTERM so unfinished jobs are requeued. Adds tests.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VKTtDVb9LcWXFknR4yWnRE
+---
+ .../picturas-27/Tools/autoscaler/Dockerfile   |   4 +
+ .../picturas-27/Tools/autoscaler/README.md    |  29 +++
+ .../Tools/autoscaler/autoscaler.py            | 162 +++++++++++++++++
+ .../Tools/autoscaler/scaling_rule.py          |  41 +++++
+ .../autoscaler/tests/test_scaling_rule.py     |  46 +++++
+ .../Tools/video/tests/test_worker_rnf02.py    | 166 ++++++++++++++++++
+ .../fase2/picturas-27/Tools/video/video.py    |  72 +++++++-
+ .../fase2/picturas-27/docker-compose.yaml     |  56 ++++++
+ .../projects/tests/rnf02-queues.test.js       |  22 +++
+ .../picturas-27/projects/utils/project_msg.js |  13 +-
+ .../picturas-27/rabbitMQ/definitions.json     |  15 ++
+ 11 files changed, 615 insertions(+), 11 deletions(-)
+ create mode 100644 pictuRAS/fase2/picturas-27/Tools/autoscaler/Dockerfile
+ create mode 100644 pictuRAS/fase2/picturas-27/Tools/autoscaler/README.md
+ create mode 100644 pictuRAS/fase2/picturas-27/Tools/autoscaler/autoscaler.py
+ create mode 100644 pictuRAS/fase2/picturas-27/Tools/autoscaler/scaling_rule.py
+ create mode 100644 pictuRAS/fase2/picturas-27/Tools/autoscaler/tests/test_scaling_rule.py
+ create mode 100644 pictuRAS/fase2/picturas-27/Tools/video/tests/test_worker_rnf02.py
+ create mode 100644 pictuRAS/fase2/picturas-27/projects/tests/rnf02-queues.test.js
+
+diff --git a/pictuRAS/fase2/picturas-27/Tools/autoscaler/Dockerfile b/pictuRAS/fase2/picturas-27/Tools/autoscaler/Dockerfile
+new file mode 100644
+index 0000000..a787a2b
+--- /dev/null
++++ b/pictuRAS/fase2/picturas-27/Tools/autoscaler/Dockerfile
+@@ -0,0 +1,4 @@
++FROM python:3.11-slim
++WORKDIR /app
++COPY scaling_rule.py autoscaler.py ./
++CMD ["python", "-u", "autoscaler.py"]
+diff --git a/pictuRAS/fase2/picturas-27/Tools/autoscaler/README.md b/pictuRAS/fase2/picturas-27/Tools/autoscaler/README.md
+new file mode 100644
+index 0000000..a715e3b
+--- /dev/null
++++ b/pictuRAS/fase2/picturas-27/Tools/autoscaler/README.md
+@@ -0,0 +1,29 @@
++# video_autoscaler (RNF-02, elasticity)
++
++Adds and removes replicas of `video_tool` from the depth of `video_queue`.
++
++- Every `POLL_S` s (5) it reads `messages_ready` and `messages_unacknowledged`
++  from the RabbitMQ management API.
++- Jobs waiting: one replica per job (waiting + running), between `MIN_REPLICAS`
++  (1) and `MAX_REPLICAS` (4).
++- Queue idle (nothing waiting or running) for `SCALE_IN_DELAY_S` s (60): back to
++  `MIN_REPLICAS`. Busy replicas are never removed.
++- New replicas copy the container Compose created (image, environment,
++  volumes, networks, limits) and keep the Compose labels, so
++  `docker compose ps video_tool` lists them and `docker compose down` removes
++  them. Only replicas created here are removed (label `picturas.autoscaled`).
++- A removed replica gets SIGTERM, stops consuming and closes its connection;
++  an unfinished job goes back to the queue.
++
++The rule is in `scaling_rule.py` and has unit tests:
++
++    cd Tools/autoscaler && python3 -m unittest discover -s tests -v
++
++Logs: `docker compose logs -f video_autoscaler`.
++
++Security: the service mounts `/var/run/docker.sock`, which gives it control of
++the Docker host. It only runs inside the internal network, has no exposed
++port and uses only the Python standard library; in production this access
++would go through a restricted Docker socket proxy.
++
++Written with AI assistance (Claude) and reviewed by the group (PL3-G7).
+diff --git a/pictuRAS/fase2/picturas-27/Tools/autoscaler/autoscaler.py b/pictuRAS/fase2/picturas-27/Tools/autoscaler/autoscaler.py
+new file mode 100644
+index 0000000..cce6b40
+--- /dev/null
++++ b/pictuRAS/fase2/picturas-27/Tools/autoscaler/autoscaler.py
+@@ -0,0 +1,162 @@
++"""RNF-02 (elasticity): autoscaler for the video worker.
++
++Every POLL_S seconds it reads the depth of TARGET_QUEUE from the RabbitMQ
++management API and adds or removes replicas of TARGET_SERVICE through the
++Docker Engine API (the Docker socket is mounted read-write). New replicas are
++copies of the replica Docker Compose created (same image, environment,
++volumes, networks and limits) with the Compose labels, so `docker compose ps`
++lists them and `docker compose down` removes them. Only replicas this service
++created are ever removed.
++
++Uses only the Python standard library.
++Written with AI assistance (Claude) and reviewed by the group (PL3-G7).
++"""
++import base64
++import http.client
++import json
++import os
++import socket
++import time
++import urllib.parse
++import urllib.request
++
++from scaling_rule import Config, desired_replicas
++
++PROJECT = os.getenv("COMPOSE_PROJECT", "picturas")
++SERVICE = os.getenv("TARGET_SERVICE", "video_tool")
++QUEUE = os.getenv("TARGET_QUEUE", "video_queue")
++RABBIT_API = os.getenv("RABBITMQ_API", "http://rabbitmq:15672")
++RABBIT_USER = os.getenv("RABBITMQ_USERNAME", "user")
++RABBIT_PASS = os.getenv("RABBITMQ_PASSWORD", "password")
++POLL_S = float(os.getenv("POLL_S", "5"))
++STOP_TIMEOUT_S = int(os.getenv("STOP_TIMEOUT_S", "30"))
++AUTO_LABEL = "picturas.autoscaled"
++CFG = Config(
++    min_replicas=int(os.getenv("MIN_REPLICAS", "1")),
++    max_replicas=int(os.getenv("MAX_REPLICAS", "4")),
++    scale_in_delay_s=float(os.getenv("SCALE_IN_DELAY_S", "60")),
++)
++
++
++def log(msg):
++    print(f"[autoscaler] {time.strftime('%Y-%m-%dT%H:%M:%S')} {msg}", flush=True)
++
++
++# ------------------------------------------------------------- Docker API
++class UnixHTTPConnection(http.client.HTTPConnection):
++    def __init__(self, path):
++        super().__init__("localhost", timeout=60)
++        self._path = path
++
++    def connect(self):
++        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
++        self.sock.connect(self._path)
++
++
++def docker(method, path, body=None):
++    conn = UnixHTTPConnection("/var/run/docker.sock")
++    data = json.dumps(body) if body is not None else None
++    conn.request(method, path, body=data, headers={"Content-Type": "application/json"})
++    resp = conn.getresponse()
++    raw = resp.read()
++    conn.close()
++    if resp.status >= 400:
++        raise RuntimeError(f"Docker API {method} {path}: {resp.status} {raw[:200]!r}")
++    return json.loads(raw) if raw else None
++
++
++def replicas():
++    filters = json.dumps({"label": [f"com.docker.compose.project={PROJECT}",
++                                    f"com.docker.compose.service={SERVICE}"]})
++    return docker("GET", "/containers/json?filters=" + urllib.parse.quote(filters))
++
++
++def add_replica(template_id, number):
++    tpl = docker("GET", f"/containers/{template_id}/json")
++    cfg, host = tpl["Config"], tpl["HostConfig"]
++    labels = dict(cfg.get("Labels") or {})
++    labels.update({"com.docker.compose.container-number": str(number),
++                   "com.docker.compose.oneoff": "False", AUTO_LABEL: "true"})
++    networks = tpl["NetworkSettings"]["Networks"]
++    first, *others = list(networks.items())
++    # Compose may describe the same volume both ways; keep each target once
++    mounts = host.get("Mounts") or []
++    targets = {m.get("Target") for m in mounts}
++    binds = [b for b in (host.get("Binds") or []) if b.split(":")[1] not in targets]
++    body = {
++        "Image": cfg["Image"], "Env": cfg.get("Env"), "Cmd": cfg.get("Cmd"),
++        "WorkingDir": cfg.get("WorkingDir"), "Labels": labels,
++        "HostConfig": {
++            "Binds": binds, "Mounts": mounts,
++            "NetworkMode": host.get("NetworkMode"),
++            "NanoCpus": host.get("NanoCpus"), "Memory": host.get("Memory"),
++            "RestartPolicy": {"Name": "no"},
++        },
++        "NetworkingConfig": {"EndpointsConfig": {first[0]: {"Aliases": [SERVICE]}}},
++    }
++    name = f"{PROJECT}-{SERVICE}-{number}"
++    created = docker("POST", f"/containers/create?name={name}", body)
++    for net, _ in others:
++        docker("POST", f"/networks/{net}/connect",
++               {"Container": created["Id"], "EndpointConfig": {"Aliases": [SERVICE]}})
++    docker("POST", f"/containers/{created['Id']}/start")
++    log(f"started {name}")
++
++
++def remove_replica(container):
++    name = container["Names"][0].lstrip("/")
++    # SIGTERM first: the worker stops consuming and leaves (see video.py)
++    docker("POST", f"/containers/{container['Id']}/stop?t={STOP_TIMEOUT_S}")
++    docker("DELETE", f"/containers/{container['Id']}")
++    log(f"removed {name}")
++
++
++# ------------------------------------------------------------- RabbitMQ API
++def queue_depth():
++    auth = base64.b64encode(f"{RABBIT_USER}:{RABBIT_PASS}".encode()).decode()
++    req = urllib.request.Request(f"{RABBIT_API}/api/queues/%2F/{QUEUE}",
++                                 headers={"Authorization": f"Basic {auth}"})
++    with urllib.request.urlopen(req, timeout=10) as r:
++        q = json.loads(r.read())
++    return q.get("messages_ready", 0), q.get("messages_unacknowledged", 0)
++
++
++# ------------------------------------------------------------- loop
++def scale_to(target, running):
++    current = len(running)
++    if target > current:
++        template = next((c for c in running if AUTO_LABEL not in c["Labels"]), running[0])
++        used = {int(c["Labels"].get("com.docker.compose.container-number", 0)) for c in running}
++        numbers = (n for n in range(1, 1000) if n not in used)
++        for _ in range(target - current):
++            add_replica(template["Id"], next(numbers))
++    elif target < current:
++        auto = sorted((c for c in running if c["Labels"].get(AUTO_LABEL) == "true"),
++                      key=lambda c: c["Created"], reverse=True)
++        for c in auto[:current - target]:
++            remove_replica(c)
++
++
++def main():
++    log(f"watching {QUEUE} -> {SERVICE} (min={CFG.min_replicas}, max={CFG.max_replicas}, "
++        f"scale-in after {CFG.scale_in_delay_s:.0f} s idle)")
++    idle_since = None
++    while True:
++        try:
++            ready, unacked = queue_depth()
++            running = replicas()
++            if not running:
++                log(f"no {SERVICE} container running yet")
++            else:
++                target, idle_since = desired_replicas(ready, unacked, len(running), idle_since,
++                                                      time.time(), CFG)
++                if target != len(running):
++                    log(f"ready={ready} unacked={unacked} replicas={len(running)} -> {target}")
++                    scale_to(target, running)
++        except Exception as e:  # noqa: BLE001 - keep watching
++            log(f"error: {e}")
++        time.sleep(POLL_S)
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/pictuRAS/fase2/picturas-27/Tools/autoscaler/scaling_rule.py b/pictuRAS/fase2/picturas-27/Tools/autoscaler/scaling_rule.py
+new file mode 100644
+index 0000000..36a1e48
+--- /dev/null
++++ b/pictuRAS/fase2/picturas-27/Tools/autoscaler/scaling_rule.py
+@@ -0,0 +1,41 @@
++"""RNF-02 (elasticity): when to add or remove video workers.
++
++Pure function, no Docker or RabbitMQ, so it is unit-tested on its own.
++
++- Scale out at once when jobs are waiting: one replica per job in the queue
++  (waiting + running), between MIN and MAX.
++- Scale in only when the queue has been completely idle (nothing waiting and
++  nothing running) for SCALE_IN_DELAY seconds, back to MIN. Removing a replica
++  while it works would throw the job back to the queue, so busy replicas are
++  never removed.
++
++Written with AI assistance (Claude) and reviewed by the group (PL3-G7).
++"""
++import math
++from dataclasses import dataclass
++from typing import Optional, Tuple
++
++
++@dataclass(frozen=True)
++class Config:
++    min_replicas: int = 1
++    max_replicas: int = 4
++    jobs_per_replica: int = 1  # the worker uses prefetch=1
++    scale_in_delay_s: float = 60.0
++
++
++def desired_replicas(ready: int, unacked: int, current: int, idle_since: Optional[float],
++                     now: float, cfg: Config) -> Tuple[int, Optional[float]]:
++    """Returns (replicas to run, new idle_since)."""
++    busy = ready + unacked
++    idle_since = (idle_since if idle_since is not None else now) if busy == 0 else None
++
++    wanted = max(cfg.min_replicas,
++                 min(cfg.max_replicas, math.ceil(busy / cfg.jobs_per_replica)))
++    if ready > 0 and wanted > current:
++        return wanted, idle_since
++    if current < cfg.min_replicas:
++        return cfg.min_replicas, idle_since
++    if busy == 0 and current > cfg.min_replicas and now - idle_since >= cfg.scale_in_delay_s:
++        return cfg.min_replicas, idle_since
++    return current, idle_since
+diff --git a/pictuRAS/fase2/picturas-27/Tools/autoscaler/tests/test_scaling_rule.py b/pictuRAS/fase2/picturas-27/Tools/autoscaler/tests/test_scaling_rule.py
+new file mode 100644
+index 0000000..41434a2
+--- /dev/null
++++ b/pictuRAS/fase2/picturas-27/Tools/autoscaler/tests/test_scaling_rule.py
+@@ -0,0 +1,46 @@
++"""Unit tests for the RNF-02 scaling rule (python -m unittest, or pytest)."""
++import os
++import sys
++import unittest
++
++sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
++from scaling_rule import Config, desired_replicas  # noqa: E402
++
++CFG = Config(min_replicas=1, max_replicas=4, scale_in_delay_s=60)
++
++
++class ScalingRule(unittest.TestCase):
++    def test_idle_queue_keeps_the_minimum(self):
++        self.assertEqual(desired_replicas(0, 0, 1, None, 100, CFG)[0], 1)
++
++    def test_waiting_jobs_add_one_replica_per_job(self):
++        self.assertEqual(desired_replicas(2, 1, 1, None, 100, CFG)[0], 3)
++
++    def test_never_more_than_the_maximum(self):
++        self.assertEqual(desired_replicas(20, 1, 1, None, 100, CFG)[0], 4)
++
++    def test_running_jobs_alone_do_not_scale_out(self):
++        # nothing waiting: the replicas running them are enough
++        self.assertEqual(desired_replicas(0, 3, 3, None, 100, CFG)[0], 3)
++
++    def test_busy_replicas_are_never_removed(self):
++        # one job still running, queue otherwise empty: keep all 4
++        self.assertEqual(desired_replicas(0, 1, 4, None, 1000, CFG)[0], 4)
++
++    def test_scale_in_only_after_the_idle_delay(self):
++        target, idle = desired_replicas(0, 0, 4, None, 100, CFG)
++        self.assertEqual((target, idle), (4, 100))
++        self.assertEqual(desired_replicas(0, 0, 4, idle, 159, CFG)[0], 4)
++        self.assertEqual(desired_replicas(0, 0, 4, idle, 160, CFG)[0], 1)
++
++    def test_new_work_resets_the_idle_timer(self):
++        _, idle = desired_replicas(0, 0, 4, 100, 150, CFG)
++        _, idle = desired_replicas(1, 0, 4, idle, 155, CFG)
++        self.assertIsNone(idle)
++
++    def test_restores_the_minimum_if_a_replica_died(self):
++        self.assertEqual(desired_replicas(0, 0, 0, None, 100, CFG)[0], 1)
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/pictuRAS/fase2/picturas-27/Tools/video/tests/test_worker_rnf02.py b/pictuRAS/fase2/picturas-27/Tools/video/tests/test_worker_rnf02.py
+new file mode 100644
+index 0000000..27b73ea
+--- /dev/null
++++ b/pictuRAS/fase2/picturas-27/Tools/video/tests/test_worker_rnf02.py
+@@ -0,0 +1,166 @@
++"""RNF-02 regression tests for the RabbitMQ side of the video worker.
++
++A fake `pika` stands in for the broker, so the tests check what the worker
++does with messages (thread, ack at the end, replies, stop on SIGTERM)
++without RabbitMQ. Plain unittest, so it also runs under pytest.
++
++Written with AI assistance (Claude) and reviewed by the group (PL3-G7).
++"""
++import importlib
++import json
++import os
++import sys
++import threading
++import time
++import types
++import unittest
++
++sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
++# Tools/ (for utils/, as copied into the image) goes last: it also has a video/ dir
++sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
++
++
++class FakeChannel:
++    def __init__(self):
++        self.acks, self.published, self.consuming = [], [], False
++        self.stopped = threading.Event()
++
++    def exchange_declare(self, **_): pass
++    def queue_declare(self, **_): pass
++    def queue_bind(self, **_): pass
++    def basic_qos(self, **_): pass
++
++    def basic_publish(self, exchange, routing_key, body):
++        self.published.append((routing_key, json.loads(body)))
++
++    def basic_ack(self, delivery_tag):
++        self.acks.append(delivery_tag)
++
++    def basic_consume(self, queue, on_message_callback, auto_ack):
++        self.queue = queue
++
++    def start_consuming(self):
++        self.stopped.wait(5)
++
++    def stop_consuming(self):
++        self.stopped.set()
++
++
++class FakeConnection:
++    def __init__(self, params):
++        self.params, self.chan, self.closed = params, FakeChannel(), False
++
++    def channel(self):
++        return self.chan
++
++    def add_callback_threadsafe(self, fn):
++        fn()  # the real pika runs it on the connection thread
++
++    def close(self):
++        self.closed = True
++
++
++def install_fakes():
++    pika = types.ModuleType("pika")
++    pika.PlainCredentials = lambda *a: None
++    pika.ConnectionParameters = lambda *a, **k: k
++    pika.BlockingConnection = FakeConnection
++    pika.exceptions = types.SimpleNamespace(AMQPConnectionError=Exception)
++    et = types.ModuleType("pika.exchange_type")
++    et.ExchangeType = types.SimpleNamespace(direct="direct")
++    sys.modules.update({"pika": pika, "pika.exchange_type": et})
++    try:
++        import pytz  # noqa: F401
++    except ImportError:
++        import datetime
++        sys.modules["pytz"] = types.SimpleNamespace(utc=datetime.timezone.utc)
++    try:
++        import dotenv  # noqa: F401
++    except ImportError:
++        sys.modules["dotenv"] = types.SimpleNamespace(load_dotenv=lambda *a, **k: None)
++
++
++def message(preview=False):
++    return json.dumps({"messageId": "m1", "procedure": "video", "parameters": {
++        "inputImageURI": "in.mp4", "outputImageURI": "out.mp4", "tools": [],
++        "preview": preview, "progress": {}}}).encode()
++
++
++class WorkerRNF02(unittest.TestCase):
++    def setUp(self):
++        install_fakes()
++        os.environ["VIDEO_QUEUE"] = "video_preview_queue"
++        self.video = importlib.reload(importlib.import_module("video"))
++
++    def tearDown(self):
++        os.environ.pop("VIDEO_QUEUE", None)
++
++    def wait_for(self, cond):
++        for _ in range(200):
++            if cond():
++                return
++            time.sleep(0.01)
++        self.fail("condition not reached")
++
++    def test_queue_comes_from_the_environment(self):
++        w = self.video.VideoWorker()
++        w._channel.stopped.set()
++        with self.assertRaises(SystemExit):
++            w.run()
++        self.assertEqual(w._channel.queue, "video_preview_queue")
++
++    def test_heartbeat_is_enabled(self):
++        w = self.video.VideoWorker()
++        self.assertGreater(w._connection.params["heartbeat"], 0)
++
++    def test_job_runs_in_a_thread_and_is_acked_only_at_the_end(self):
++        release = threading.Event()
++
++        def slow_process(*a, **k):
++            release.wait(2)
++            return {"frames": 1}
++
++        self.video.process_video = slow_process
++        w = self.video.VideoWorker()
++        method = types.SimpleNamespace(delivery_tag=7)
++        w.callback(w._channel, method, None, message())
++        # the callback returned at once (the connection thread is free)…
++        self.assertTrue(w._busy.is_set())
++        self.assertEqual(w._channel.acks, [])
++        release.set()
++        # …and the ack and the reply come when the job ends
++        self.wait_for(lambda: w._channel.acks == [7])
++        replies = [m for q, m in w._channel.published if q == "project_queue"]
++        self.assertEqual(replies[0]["status"], "success")
++        self.assertFalse(w._busy.is_set())
++
++    def test_a_failed_job_is_reported_and_acked(self):
++        def boom(*a, **k):
++            raise RuntimeError("ffmpeg failed")
++
++        self.video.process_video = boom
++        w = self.video.VideoWorker()
++        w.callback(w._channel, types.SimpleNamespace(delivery_tag=3), None, message())
++        self.wait_for(lambda: w._channel.acks == [3])
++        replies = [m for q, m in w._channel.published if q == "project_queue"]
++        self.assertEqual(replies[0]["status"], "error")
++
++    def test_sigterm_stops_consuming_and_leaves_the_job_unacked(self):
++        release = threading.Event()
++        self.video.process_video = lambda *a, **k: (release.wait(2), {"frames": 1})[1]
++        w = self.video.VideoWorker()
++        w.callback(w._channel, types.SimpleNamespace(delivery_tag=9), None, message())
++        w._on_sigterm()
++        self.assertTrue(w._channel.stopped.is_set())
++        with self.assertRaises(SystemExit):
++            w.run()
++        # closed without the ack: RabbitMQ gives the job to another replica
++        self.assertTrue(w._connection.closed)
++        self.assertEqual(w._channel.acks, [])
++        # and no new job is taken while stopping
++        w.callback(w._channel, types.SimpleNamespace(delivery_tag=10), None, message())
++        release.set()
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/pictuRAS/fase2/picturas-27/Tools/video/video.py b/pictuRAS/fase2/picturas-27/Tools/video/video.py
+index fa5362b..90dce45 100644
+--- a/pictuRAS/fase2/picturas-27/Tools/video/video.py
++++ b/pictuRAS/fase2/picturas-27/Tools/video/video.py
+@@ -7,10 +7,23 @@ as a percentage.
+ 
+ Unlike the image tools, the message is only acknowledged after the job ends:
+ if the worker dies midway, RabbitMQ redelivers it.
++
++RNF-02 (elasticity): the same image runs as several replicas (added and
++removed by Tools/autoscaler) and as a dedicated preview worker
++(VIDEO_QUEUE=video_preview_queue). The job runs in its own thread so the
++connection keeps sending heartbeats, and SIGTERM (a replica being removed)
++closes the connection without acknowledging, so an unfinished job goes back
++to the queue for another replica.
++
++RNF-02 changes written with AI assistance (Claude), reviewed by PL3-G7.
+ """
+ import datetime
++import functools
+ import json
+ import os
++import signal
++import sys
++import threading
+ import time
+ import uuid
+ 
+@@ -23,7 +36,9 @@ from effects import UnsupportedEffect
+ from video_processor import InvalidSpeed, InvalidTrim, InvalidVideo, process_video
+ 
+ EXCHANGE = "picturas"
+-VIDEO_QUEUE = "video_queue"
++# RNF-02: video_queue for full jobs, video_preview_queue for the preview worker
++VIDEO_QUEUE = os.getenv("VIDEO_QUEUE", "video_queue")
++HEARTBEAT_S = int(os.getenv("RABBITMQ_HEARTBEAT", "60"))
+ PROJECT_QUEUE = "project_queue"
+ WS_QUEUE = "ws_queue"
+ MICROSERVICE = "picturas-video-tool-ms"
+@@ -52,15 +67,17 @@ class VideoWorker:
+         self._channel.queue_bind(queue=VIDEO_QUEUE, exchange=EXCHANGE, routing_key=VIDEO_QUEUE)
+         # one video at a time per replica; parallelism comes from replicas
+         self._channel.basic_qos(prefetch_count=1)
++        self._busy = threading.Event()
++        self._stopping = False
+ 
+     @staticmethod
+     def _connect():
+         credentials = pika.PlainCredentials(env.RABBITMQ_USERNAME, env.RABBITMQ_PASSWORD)
+         params = pika.ConnectionParameters(
+             env.RABBITMQ_HOST, int(env.RABBITMQ_PORT), "/", credentials,
+-            # processing a video blocks this thread for minutes; without a
+-            # heartbeat the broker does not drop the connection midway
+-            heartbeat=0,
++            # RNF-02: jobs run in a separate thread, so this thread keeps
++            # answering heartbeats and a dead replica is detected
++            heartbeat=HEARTBEAT_S,
+         )
+         for attempt in range(30):
+             try:
+@@ -69,9 +86,17 @@ class VideoWorker:
+                 time.sleep(2)
+         raise RuntimeError("Could not connect to RabbitMQ")
+ 
++    def _threadsafe(self, fn):
++        """Runs fn on the connection's thread (pika is not thread-safe)."""
++        if threading.current_thread() is threading.main_thread():
++            fn()
++        else:
++            self._connection.add_callback_threadsafe(fn)
++
+     def _publish(self, queue, msg):
+-        self._channel.basic_publish(exchange=EXCHANGE, routing_key=queue,
+-                                    body=json.dumps(msg))
++        self._threadsafe(functools.partial(
++            self._channel.basic_publish, exchange=EXCHANGE, routing_key=queue,
++            body=json.dumps(msg)))
+ 
+     def _reply_success(self, msg_id, started, output_uri, video_info):
+         output = {"type": video_info.get("output_type", "video"),
+@@ -124,6 +149,22 @@ class VideoWorker:
+         })
+ 
+     def callback(self, ch, method, properties, body):
++        """Receives a job and runs it in its own thread (RNF-02)."""
++        if self._stopping:
++            return  # not acknowledged: goes back to the queue on close
++        self._busy.set()
++        threading.Thread(target=self._job, args=(ch, method, body), daemon=True).start()
++
++    def _job(self, ch, method, body):
++        try:
++            self._handle(ch, method, body)
++        finally:
++            self._busy.clear()
++
++    def _ack(self, ch, method):
++        self._threadsafe(functools.partial(ch.basic_ack, delivery_tag=method.delivery_tag))
++
++    def _handle(self, ch, method, body):
+         started = now()
+         info = {}
+         try:
+@@ -137,7 +178,7 @@ class VideoWorker:
+             progress = params.get("progress") or {}
+         except (ValueError, KeyError) as e:
+             print(f"[video] invalid message discarded: {e}", flush=True)
+-            ch.basic_ack(delivery_tag=method.delivery_tag)
++            self._ack(ch, method)
+             return
+ 
+         print(f"[video] msg={msg_id} preview={preview} tools={[t.get('procedure') for t in tools]}",
+@@ -167,13 +208,26 @@ class VideoWorker:
+                 self._reply_error(msg_id, started, CODES["error_processing"], str(e), input_uri)
+ 
+         # manual ack only at the end
+-        ch.basic_ack(delivery_tag=method.delivery_tag)
++        self._ack(ch, method)
++
++    def _on_sigterm(self, *_):
++        """A replica is being removed: stop taking jobs and leave."""
++        self._stopping = True
++        # from a signal handler pika must be woken up through the callback queue
++        self._connection.add_callback_threadsafe(self._channel.stop_consuming)
+ 
+     def run(self):
++        signal.signal(signal.SIGTERM, self._on_sigterm)
+         self._channel.basic_consume(queue=VIDEO_QUEUE, on_message_callback=self.callback,
+                                     auto_ack=False)
+-        print("[video] waiting for jobs on video_queue", flush=True)
++        print(f"[video] waiting for jobs on {VIDEO_QUEUE}", flush=True)
+         self._channel.start_consuming()
++        if self._busy.is_set():
++            print("[video] stopping with a job in progress: it goes back to the queue",
++                  flush=True)
++        # closing without the ack makes RabbitMQ redeliver an unfinished job
++        self._connection.close()
++        sys.exit(0)
+ 
+ 
+ if __name__ == "__main__":
+diff --git a/pictuRAS/fase2/picturas-27/docker-compose.yaml b/pictuRAS/fase2/picturas-27/docker-compose.yaml
+index b0fb38b..4346c56 100644
+--- a/pictuRAS/fase2/picturas-27/docker-compose.yaml
++++ b/pictuRAS/fase2/picturas-27/docker-compose.yaml
+@@ -253,12 +253,17 @@ services:
+       - image_data:/app/images
+ 
+   # Video worker (ffmpeg isolated in the container)
++  # RNF-02: full video jobs. Starts with 1 replica; video_autoscaler adds
++  # replicas (copies of this container) while jobs are waiting.
+   video_tool:
+     build:
+       context: ./Tools
+       dockerfile: video/Dockerfile
+     restart: on-failure
++    # time for a removed replica to close its connection (its job is requeued)
++    stop_grace_period: 30s
+     environment:
++      VIDEO_QUEUE: video_queue
+       VIDEO_PREVIEW_SECONDS: 3
+       WHISPER_MODEL: small
+       WHISPER_CACHE_DIR: /models/whisper
+@@ -272,6 +277,57 @@ services:
+       - image_data:/app/images
+       - whisper_models:/models/whisper
+ 
++  # RNF-02: previews have their own queue and worker, so a 3 s preview never
++  # waits behind full video jobs
++  video_preview_tool:
++    build:
++      context: ./Tools
++      dockerfile: video/Dockerfile
++    restart: on-failure
++    stop_grace_period: 30s
++    environment:
++      VIDEO_QUEUE: video_preview_queue
++      VIDEO_PREVIEW_SECONDS: 3
++      WHISPER_MODEL: small
++      WHISPER_CACHE_DIR: /models/whisper
++      WHISPER_CPU_THREADS: 2
++    networks:
++      - elk
++    depends_on:
++      rabbitmq:
++        condition: service_healthy
++    volumes:
++      - image_data:/app/images
++      - whisper_models:/models/whisper
++
++  # RNF-02: scales video_tool between MIN_REPLICAS and MAX_REPLICAS from the
++  # depth of video_queue (Tools/autoscaler/README.md)
++  video_autoscaler:
++    build:
++      context: ./Tools/autoscaler
++    restart: on-failure
++    environment:
++      COMPOSE_PROJECT: picturas
++      TARGET_SERVICE: video_tool
++      TARGET_QUEUE: video_queue
++      MIN_REPLICAS: 1
++      MAX_REPLICAS: 4
++      SCALE_IN_DELAY_S: 60
++      POLL_S: 5
++      RABBITMQ_API: http://rabbitmq:15672
++      RABBITMQ_USERNAME: user
++      RABBITMQ_PASSWORD: password
++    networks:
++      - elk
++    depends_on:
++      rabbitmq:
++        condition: service_healthy
++      video_tool:
++        condition: service_started
++    volumes:
++      # needed to start and stop replicas (see the security note in the report)
++      - /var/run/docker.sock:/var/run/docker.sock
++
+   border_tool:
+     build:
+       context: ./Tools
+diff --git a/pictuRAS/fase2/picturas-27/projects/tests/rnf02-queues.test.js b/pictuRAS/fase2/picturas-27/projects/tests/rnf02-queues.test.js
+new file mode 100644
+index 0000000..ffb5f4a
+--- /dev/null
++++ b/pictuRAS/fase2/picturas-27/projects/tests/rnf02-queues.test.js
+@@ -0,0 +1,22 @@
++// Regression tests for the RNF-02 refactoring (elasticity of video processing):
++// video previews go to their own queue, everything else keeps its queue.
++// Run inside the container: docker compose exec projects node --test
++//
++// Written with AI assistance (Claude) and reviewed by the group (PL3-G7).
++const test = require("node:test");
++const assert = require("node:assert/strict");
++const { queueFor } = require("../utils/project_msg");
++
++test("a video preview goes to video_preview_queue", () => {
++  assert.equal(queueFor("video", { preview: true, tools: [] }), "video_preview_queue");
++});
++
++test("a full video job stays on video_queue", () => {
++  assert.equal(queueFor("video", { preview: false, tools: [] }), "video_queue");
++  assert.equal(queueFor("video", {}), "video_queue");
++});
++
++test("image tools keep their queues, previews included", () => {
++  assert.equal(queueFor("brightness", { preview: true }), "brightness_queue");
++  assert.equal(queueFor("cut_ai", {}), "cut_ai_queue");
++});
+diff --git a/pictuRAS/fase2/picturas-27/projects/utils/project_msg.js b/pictuRAS/fase2/picturas-27/projects/utils/project_msg.js
+index 390d22a..2310064 100644
+--- a/pictuRAS/fase2/picturas-27/projects/utils/project_msg.js
++++ b/pictuRAS/fase2/picturas-27/projects/utils/project_msg.js
+@@ -19,12 +19,21 @@ const queues = {
+     'expand_ai': 'expand_ai_queue',
+     'watermark': 'watermark_queue',
+     'video': 'video_queue',
++    // RNF-02: video previews have their own queue and worker, so they never
++    // wait behind full video jobs
++    'video_preview': 'video_preview_queue',
+     'project': 'project_queue',
+     'ws': 'ws_queue'
+ }
+ 
++// Queue a tool message goes to (RNF-02: video previews go to their own queue)
++function queueFor(tool, params) {
++    if (tool === 'video' && params && params.preview) return queues['video_preview'];
++    return queues[tool];
++}
++
+ function send_msg_tool(msg_id, timestamp, og_img_uri, new_img_uri, tool, params) {
+-    const queue = queues[tool];
++    const queue = queueFor(tool, params);
+     const msg = {
+         "messageId": msg_id,
+         "timestamp": timestamp,
+@@ -109,4 +118,4 @@ function send_msg_project_op({ projectId, ownerId, op }) {
+   send_rabbit_msg(msg, queue);
+ }
+ 
+-module.exports = { send_msg_tool, send_msg_client, send_msg_client_error, send_msg_client_preview, send_msg_client_preview_error, read_msg, send_msg_project_op };
+\ No newline at end of file
++module.exports = { queueFor, send_msg_tool, send_msg_client, send_msg_client_error, send_msg_client_preview, send_msg_client_preview_error, read_msg, send_msg_project_op };
+\ No newline at end of file
+diff --git a/pictuRAS/fase2/picturas-27/rabbitMQ/definitions.json b/pictuRAS/fase2/picturas-27/rabbitMQ/definitions.json
+index 1aaf7a3..7b0914c 100644
+--- a/pictuRAS/fase2/picturas-27/rabbitMQ/definitions.json
++++ b/pictuRAS/fase2/picturas-27/rabbitMQ/definitions.json
+@@ -172,6 +172,13 @@
+             "durable": true,
+             "auto_delete": false,
+             "arguments": {}
++        },
++        {
++            "name": "video_preview_queue",
++            "vhost": "/",
++            "durable": true,
++            "auto_delete": false,
++            "arguments": {}
+         }
+     ],
+     "exchanges": [
+@@ -345,6 +352,14 @@
+             "destination_type": "queue",
+             "routing_key": "video_queue",
+             "arguments": {}
++        },
++        {
++            "source": "picturas",
++            "vhost": "/",
++            "destination": "video_preview_queue",
++            "destination_type": "queue",
++            "routing_key": "video_preview_queue",
++            "arguments": {}
+         }
+     ]
+ }
+-- 
+2.43.0
+
