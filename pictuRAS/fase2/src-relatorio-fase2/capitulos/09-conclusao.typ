@@ -22,6 +22,6 @@ O *RNF-01* atingiu o objetivo principal: um vídeo de 1 GB, que na base derrubav
 
 O *RNF-02* introduziu elasticidade real (expansão e contração dentro dos alvos) e separou as pré-visualizações dos processamentos, reduzindo a espera p95 de 21 minutos para 30 segundos. O débito (E3) e a espera da pré-visualização (E4) ficaram abaixo do mínimo neste portátil, por saturação de CPU: as réplicas não têm quota de CPU e o worker de pré-visualização é um só. O caminho para os cumprir está identificado (limitar o CPU das réplicas e escalar também as pré-visualizações) e não foi aplicado para não alterar o método depois da medição.
 
-#palpite[Mantemos os valores-alvo da análise sem os ajustar depois de medir: baixar E3 ou E4 agora seria ajustar o requisito ao resultado. Os alvos não atingidos ficam registados como tais, com a causa e a correção proposta.]
+Mantivemos os valores-alvo da análise sem os ajustar depois de medir: baixar E3 ou E4 nessa altura seria ajustar o requisito ao resultado. Os alvos não atingidos ficam registados como tais, com a causa e a correção proposta.
 
 *Trabalho futuro.* Quota de CPU por réplica e autoscaler também na fila de pré-visualizações; proxy restrito para o `docker.sock`; `proxy_read_timeout` do nginx adequado a carregamentos grandes; resolução dinâmica do nome do gateway no nginx; medição do pico de disco temporário.

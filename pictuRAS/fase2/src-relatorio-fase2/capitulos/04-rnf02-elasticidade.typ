@@ -29,7 +29,7 @@ Na base há um único `video_tool`, com `prefetch_count=1`, a consumir a `video_
 *Origem dos valores.*
 
 - *E4 = 5 s.* O documento de requisitos da PL1-G4 tem o REQ-VID-PREVIEW-005 (eficiência de desempenho, comportamento temporal, prioridade _Should_): a pré-visualização deve ser produzida "num tempo muito inferior ao da edição completa", com a métrica "quase imediata" e a justificação de ficar pronta "em poucos segundos, mesmo para um vídeo longo". O teste TST-PREVIEW-02 desse documento mediu 2,2 a 4,4 s para o excerto de 3 s, com o worker livre. Fixámos 5 s como alvo para que, com a fila cheia, a pré-visualização continue no mesmo patamar que a PL1-G4 aceitou com a fila vazia; o mínimo de 10 s é o dobro.
-- E1 e E2: #palpite[são da ordem de grandeza de um processamento (≈ 60 s por vídeo na base): a capacidade extra deve chegar antes de o primeiro trabalho terminar, e a contração não deve deixar réplicas paradas mais de dois minutos.]
+- E1 e E2: são da ordem de grandeza de um processamento (≈ 60 s por vídeo na base): a capacidade extra deve chegar antes de o primeiro trabalho terminar, e a contração não deve deixar réplicas paradas mais de dois minutos.
 - E3 e o máximo de 4 réplicas dependem dos núcleos do portátil (4 núcleos físicos).
 
 == Decisões arquiteturais

@@ -23,11 +23,11 @@
     [TM-01], [Carregar um vídeo pelo Import: aparece a barra de progresso.], [Passou],
     [TM-02], [Criar um projeto com um vídeo: aparece a barra de progresso.], [Falhou no patch inicial; passou depois de `aba322d`],
     [TM-03], [Aplicar brilho a um vídeo, pré-visualizar e processar: o resultado aparece.], [Passou],
-    [TM-04], [#palpite[Carregar imagens, aplicar uma cadeia de ferramentas de imagem e descarregar o resultado.]], [#palpite[Passou]],
-    [TM-05], [#palpite[Partilhar um projeto e abri-lo com outro utilizador.]], [#palpite[Passou]],
-    [TM-06], [#palpite[Legendagem automática de um vídeo curto (fila `video_queue`, agora com réplicas).]], [#palpite[Passou]],
-    [TM-07], [#palpite[Extração de fotogramas como último passo do pipeline.]], [#palpite[Passou]],
-    [TM-08], [#palpite[Carregar um vídeo acima do limite do perfil free: mesma mensagem de erro e mesmo código HTTP da base.]], [#palpite[Passou (também coberto por M4 e pelos testes do `projects`)]],
+    [TM-04], [Carregar imagens, aplicar brilho, rotação e border, processar e descarregar o resultado.], [Passou],
+    [TM-05], [Criar um link de partilha (View only) e abri-lo com outro utilizador: o projeto aparece com os efeitos.], [Passou],
+    [TM-06], [Legendagem automática (perfil premium, `speech_mandela_177s_1080p.webm`): pré-visualização pelo `video_preview_tool` e processamento pelas réplicas do `video_tool`; legendas visíveis no resultado.], [Passou],
+    [TM-07], [Corte seguido de extração de 10 fotogramas: os fotogramas refletem o corte e uma ferramenta depois da extração é recusada.], [Passou],
+    [TM-08], [Perfil free: `too_long_90s.mp4` e `corrupted.mp4` são recusados com a mesma mensagem de erro e o mesmo código HTTP da base.], [Passou (também coberto por M4 e pelos testes do `projects`)],
   ),
 )
 

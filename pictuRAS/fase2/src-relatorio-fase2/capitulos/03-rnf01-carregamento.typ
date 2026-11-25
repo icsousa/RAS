@@ -35,7 +35,7 @@ O limite do perfil só é verificado depois de o ficheiro estar todo em memória
 
 - O limite de 1 GB vem de `VIDEO_PREMIUM_MAX_SIZE_MB: 1024` no `docker-compose.yaml`.
 - O alvo de M1 vem da medição exploratória: cerca de 90 MB por salto em streaming, vezes três saltos.
-- *M3 = 4.* #palpite[A análise previa que três carregamentos Premium de 1 GB em simultâneo bastassem para esgotar a memória do anfitrião na base (a medição oficial mostrou que até um só o faz). Fixámos o alvo acima desse ponto de rutura: 4 carregamentos de 1 GB com só 2 GB por serviço provam que a memória deixou de depender do tamanho do ficheiro (4 GB de dados a passar por um serviço com 2 GB). O mínimo de 2 corresponde ao dobro do que a base suporta no melhor caso (1). Não temos dados de utilização real; 4 é uma estimativa conservadora para o pico de Premium a carregar ao mesmo tempo num MVP académico.]
+- *M3 = 4.* A análise previa que três carregamentos Premium de 1 GB em simultâneo bastassem para esgotar a memória do anfitrião na base (a medição oficial mostrou que até um só o faz). Fixámos o alvo acima desse ponto de rutura: 4 carregamentos de 1 GB com só 2 GB por serviço provam que a memória deixou de depender do tamanho do ficheiro (4 GB de dados a passar por um serviço com 2 GB). O mínimo de 2 corresponde ao dobro do que a base suporta no melhor caso (1). Não temos dados de utilização real; 4 é uma estimativa conservadora para o pico de Premium a carregar ao mesmo tempo num MVP académico.
 - M2 e M4 são relativos à base ou ao limite do perfil, para não dependerem do hardware.
 
 == Decisões arquiteturais
