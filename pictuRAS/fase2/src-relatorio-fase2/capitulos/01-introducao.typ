@@ -35,8 +35,8 @@ O diagnóstico detalhado, as medições exploratórias e a comparação de alter
 
 == Organização do documento
 
-- *Parte I — Enquadramento* (Capítulos 1 e 2): objetivo, ponto de partida, ambiente e método de medição.
-- *Parte II — Os dois RNF* (Capítulos 3 e 4): para cada um, diagnóstico, quantificação, decisões arquiteturais e refatoração, medição de base e final, e análise.
-- *Parte III — Avaliação transversal* (Capítulos 5 a 9): efeitos colaterais noutros requisitos, preservação funcional, validade das medições, utilização de IA e conclusão.
+- *Parte I - Enquadramento* (Capítulos 1 e 2): objetivo, ponto de partida, ambiente e método de medição.
+- *Parte II - Os dois RNF* (Capítulos 3 e 4): para cada um, diagnóstico, quantificação, decisões arquiteturais e refatoração, medição de base e final, e análise.
+- *Parte III - Avaliação transversal* (Capítulos 5 a 9): efeitos colaterais noutros requisitos, preservação funcional, validade das medições, utilização de IA e conclusão.
 
 O Anexo A explica como repetir as medições e os testes.

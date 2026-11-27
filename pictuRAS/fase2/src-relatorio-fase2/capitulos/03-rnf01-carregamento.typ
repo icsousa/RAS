@@ -1,8 +1,8 @@
 #import "../template.typ": *
 
-= RNF-01 — Carregamento de ficheiros grandes
+= RNF-01 - Carregamento de ficheiros grandes
 
-*Classificação ISO/IEC 25010:* eficiência de desempenho — utilização de recursos (memória) e comportamento temporal.
+*Classificação ISO/IEC 25010:* eficiência de desempenho - utilização de recursos (memória) e comportamento temporal.
 
 == Diagnóstico
 
@@ -77,10 +77,10 @@ Foram avaliadas três alternativas (secção 3 da análise).
     [M1, 100 MB], [898 MB], [408 MB], [], [],
     [M1, 500 MB], [4 212 MB], [1 050 MB], [], [],
     [M1, 1 GB (`memory.peak`)], [0/5 com sucesso; ≈ 8 GB até ao OOM], [2 253 MB (5/5)], [≤ 300 MB / ≤ 1 GB], [ver análise],
-    [M1, 1 GB (memória dos processos)], [—], [*≈ 190 MB*], [≤ 300 MB / ≤ 1 GB], [#ok],
+    [M1, 1 GB (memória dos processos)], [-], [*≈ 190 MB*], [≤ 300 MB / ≤ 1 GB], [#ok],
     [M2, 100 MB], [3,0 s], [3,4 s], [≤ base − 30 % / ≤ base], [#falha (+12 %)],
     [M2, 500 MB], [14,2 s], [13,5 s], [≤ base − 30 % / ≤ base], [#okmin (−5 %)],
-    [M2, 1 GB], [falha (502/504)], [25,5 s], [—], [passa a funcionar],
+    [M2, 1 GB], [falha (502/504)], [25,5 s], [-], [passa a funcionar],
     [M3], [0], [*4*], [4 / 2], [#ok],
     [M4], [300 MB (400 ao fim de 5,1 s)], [*10,8 MB* (400 ao fim de 0,09 s)], [≤ 101 MB / ≤ 200 MB], [#ok],
     [M5], [Não (só um spinner)], [Sim (barra com percentagem)], [Sim], [#ok (atualizações/s não medidas)],

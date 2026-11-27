@@ -1,8 +1,8 @@
 #import "../template.typ": *
 
-= RNF-02 — Elasticidade do processamento de vídeo
+= RNF-02 - Elasticidade do processamento de vídeo
 
-*Classificação ISO/IEC 25010:* eficiência de desempenho — capacidade (a edição de 2023 também lista a escalabilidade, em flexibilidade).
+*Classificação ISO/IEC 25010:* eficiência de desempenho - capacidade (a edição de 2023 também lista a escalabilidade, em flexibilidade).
 
 == Diagnóstico
 
