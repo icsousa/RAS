@@ -33,8 +33,8 @@ O âmbito é a extensão de vídeo, analisada no quadro do padrão global da sol
   tabela(
     colunas: (4.2cm, 2.2cm, 2cm, 2cm, 1fr),
     [Exercício], [Capítulos], [Enunciado], [Template], [Versão do documento da equipa],
-    [Exercício 6, Bloco 1: padrões arquiteturais], [2, 3 e 4], [#preencher[1.1]], [#preencher[1.1]], [v1.0 (`analise-rnf`, diagnóstico)],
-    [Exercício 6, Bloco 2: trade-offs, cenários e candidatos a RNF], [5 e 6], [#preencher[1.2]], [#preencher[1.2]], [v1.0 (`analise-rnf`, quantificação)],
+    [Exercício 6, Bloco 1: padrões arquiteturais], [2, 3 e 4], [#preencher[1.1]], [#preencher[1.1]], [v1.0 (diagnóstico)],
+    [Exercício 6, Bloco 2: trade-offs, cenários e candidatos a RNF], [5 e 6], [#preencher[1.2]], [#preencher[1.2]], [v1.0 (quantificação)],
     [Exercício 7: táticas arquiteturais], [7 a 10], [#preencher[3.0]], [#preencher[3.0]], [v1.1 (refatoração e medições)],
   ),
 )

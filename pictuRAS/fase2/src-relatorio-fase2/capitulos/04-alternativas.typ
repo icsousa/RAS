@@ -8,9 +8,9 @@
   tabela(
     colunas: (1.4cm, 3cm, 1fr, 2.6cm, 2.6cm),
     [ID], [Nome / padrão], [Descrição breve], [Mantém ou altera o padrão global?], [Fonte],
-    [ALT-1], [Consumidores concorrentes elásticos com filas separadas], [O `video_tool` mantém-se, mas passa a ter de 1 a N réplicas ajustadas à profundidade da fila por um _autoscaler_; as pré-visualizações passam para uma fila própria com worker dedicado.], [Mantém], [Aula 11 (mensagens, _competing consumers_); análise `analise-rnf`, B2 + B4],
+    [ALT-1], [Consumidores concorrentes elásticos com filas separadas], [O `video_tool` mantém-se, mas passa a ter de 1 a N réplicas ajustadas à profundidade da fila por um _autoscaler_; as pré-visualizações passam para uma fila própria com worker dedicado.], [Mantém], [Aula 11 (mensagens, _competing consumers_); TAT-08 e TAT-09],
     [ALT-2], [_Pipes and filters_ distribuído (um serviço por efeito de vídeo)], [Cada efeito de vídeo passa a ser um worker com fila própria e o `projects` encadeia os passos, como nas imagens.], [Mantém (alinha o vídeo com o caminho das imagens)], [Aula 11 (_pipes and filters_); EV-11],
-    [ALT-3 (opcional)], [Um _job_ por vídeo numa plataforma de orquestração (Kubernetes Jobs / KEDA _ScaledJob_)], [Cada mensagem da `video_queue` cria um contentor efémero que processa o vídeo e termina; a plataforma gere a escala e os recursos.], [Afasta-se parcialmente (muda a plataforma de deploy, mantém filas e serviços)], [Documento de apoio de padrões; análise `analise-rnf`, B3],
+    [ALT-3 (opcional)], [Um _job_ por vídeo numa plataforma de orquestração (Kubernetes Jobs / KEDA _ScaledJob_)], [Cada mensagem da `video_queue` cria um contentor efémero que processa o vídeo e termina; a plataforma gere a escala e os recursos.], [Afasta-se parcialmente (muda a plataforma de deploy, mantém filas e serviços)], [Documento de apoio de padrões; TAT-12],
   ),
 )
 

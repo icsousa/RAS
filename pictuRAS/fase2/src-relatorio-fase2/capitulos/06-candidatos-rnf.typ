@@ -47,8 +47,8 @@ Os dois candidatos são independentes na implementação (serviços diferentes) 
   tabela(
     colunas: (1fr, 4cm, 4.4cm),
     [Descrição], [Localização (scripts, dados, resultados)], [Como repetir],
-    [*EV-18*: um salto que bufferiza (buffer + `FormData` + temporário + hash) chega a ≈ 3 062 MB de RSS para 1 000 MB; em streaming fica em ≈ 91 MB e é ≈ 2 × mais rápido (2,1 s contra 4,1 s)], [`medicoes/upload_rss.js`; resultados na secção 2 de `analise-rnf.pdf` (2 vCPU, 8 GB, 1 execução por ponto, 2026-11-11)], [`node medicoes/upload_rss.js` (Node 22, sem dependências)],
-    [*EV-19*: com 4 trabalhos completos e 1 pré-visualização na fila, a pré-visualização espera 14,7 s; com 2 consumidores na mesma máquina de 2 núcleos espera 14,2 s e cada trabalho demora o dobro], [`medicoes/fila.py`; resultados na secção 4 de `analise-rnf.pdf`], [`python3 medicoes/fila.py` (requer `ffmpeg`)],
+    [*EV-18*: um salto que bufferiza (buffer + `FormData` + temporário + hash) chega a ≈ 3 062 MB de RSS para 1 000 MB; em streaming fica em ≈ 91 MB e é ≈ 2 × mais rápido (2,1 s contra 4,1 s)], [`medicoes/upload_rss.js`; ficheiros de 100, 500 e 1 000 MB; 2 vCPU, 8 GB, sem Docker, 1 execução por ponto, 2026-11-11], [`node medicoes/upload_rss.js` (Node 22, sem dependências)],
+    [*EV-19*: com 4 trabalhos completos e 1 pré-visualização na fila, a pré-visualização espera 14,7 s; com 2 consumidores na mesma máquina de 2 núcleos espera 14,2 s e cada trabalho demora o dobro], [`medicoes/fila.py`; recodificação de 20 s em 720p com `libx264 -preset veryfast` (as opções do worker); 2 vCPU, 2026-11-11], [`python3 medicoes/fila.py` (requer `ffmpeg`)],
   ),
 )
 
