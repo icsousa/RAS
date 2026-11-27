@@ -1,0 +1,36 @@
+// Vista arquitetural DEPOIS das decisões DA-1 e DA-2. A verde: elementos novos ou alterados pelas táticas.
+// Gerar: dot -Tpng -Gdpi=200 vista_depois.dot -o ../images/vista_depois.png
+digraph G {
+  rankdir=TB; splines=spline; nodesep=0.3; ranksep=0.4;
+  node [fontname="Carlito", fontsize=11, shape=box, style="rounded,filled", fillcolor="#FFFFFF", color="#555555"];
+  edge [fontname="Carlito", fontsize=9, color="#666666"];
+  user [label="Browser (frontend)\n«tática: feedback»\nbarra de progresso", fillcolor="#E3F1E4", color="#2E7D32", penwidth=2];
+  subgraph cluster_up { label="Carregamento (QS-01) — DA-1"; fontname="Carlito"; fontsize=10; style=dashed; color="#999999";
+    nginx [label="nginx\nproxy_request_buffering off", fillcolor="#E3F1E4", color="#2E7D32", penwidth=2];
+    gw [label="api_gateway\ncheckToken → pipe\n«tática: streaming»", fillcolor="#E3F1E4", color="#2E7D32", penwidth=2];
+    projects [label="projects (mediaUpload.js)\nContent-Length → recusa cedo\ndiskStorage + ffprobe/hash\nsobre ficheiro", fillcolor="#E3F1E4", color="#2E7D32", penwidth=2];
+    store [label="img_storage\nstream → s3.upload\nmultipart", fillcolor="#E3F1E4", color="#2E7D32", penwidth=2];
+  }
+  s3 [label="SeaweedFS (S3)", shape=cylinder];
+  subgraph cluster_proc { label="Processamento de vídeo (QS-02) — DA-2"; fontname="Carlito"; fontsize=10; style=dashed; color="#999999";
+    q [label="video_queue\n(processamentos)", style="filled", fillcolor="#F3E3D3"];
+    qp [label="video_preview_queue\n«tática: separar filas»", style="filled", fillcolor="#E3F1E4", color="#2E7D32", penwidth=2];
+    video [label="video_tool ×1..4\nheartbeat ativo,\nSIGTERM sem ack", fillcolor="#E3F1E4", color="#2E7D32", penwidth=2];
+    vprev [label="video_preview_tool ×1", fillcolor="#E3F1E4", color="#2E7D32", penwidth=2];
+    scaler [label="video_autoscaler\n«tática: escalar réplicas»\nlê a fila a cada 5 s", fillcolor="#E3F1E4", color="#2E7D32", penwidth=2];
+  }
+  docker [label="Docker Engine\n(docker.sock)", shape=component, fillcolor="#F5F5F5"];
+  pq [label="project_queue / ws_queue", style="filled", fillcolor="#F3E3D3"];
+  user -> nginx [label="POST …/video\n(multipart)"];
+  nginx -> gw [label="stream"];
+  gw -> projects [label="stream", color="#2E7D32", penwidth=1.8];
+  projects -> store [label="stream", color="#2E7D32", penwidth=1.8];
+  store -> s3 [label="multipart", color="#2E7D32", penwidth=1.8];
+  projects -> q [label="Apply"];
+  projects -> qp [label="pré-visualizar", color="#2E7D32", penwidth=1.8];
+  q -> video; qp -> vprev [color="#2E7D32", penwidth=1.8];
+  scaler -> q [label="ready + unacked\n(API de gestão)", style=dashed, color="#2E7D32"];
+  scaler -> docker [label="criar / remover\nréplicas", color="#2E7D32", penwidth=1.8];
+  docker -> video [style=dashed, color="#2E7D32"];
+  video -> pq [label="resultado,\nprogresso"]; vprev -> pq;
+}

@@ -1,5 +1,5 @@
 // =============================================================================
-//  PictuRAS · RAS 2026/2027 · Relatório da Fase 2 (Melhoria de RNF)
+//  PictuRAS · RAS 2026/2027 · Template do Relatório da Fase 2 (Melhoria de RNF)
 //  Estilos de página e componentes reutilizáveis.
 //  Em princípio NÃO precisam de alterar este ficheiro.
 // =============================================================================
@@ -25,7 +25,7 @@
     )[
       #set text(size: 9pt)
       #set par(justify: false)
-      #text(weight: "bold", fill: rgb("#C76C1B"))[Orientação (esconder antes de entregar)] \
+      #text(weight: "bold", fill: rgb("#C76C1B"))[Orientação (apagar antes de entregar)] \
       #corpo
     ]
   }
@@ -95,7 +95,7 @@
 // Figura com tabela legendada (aparece na Lista de Tabelas).
 #let tab(legenda, corpo) = figure(corpo, kind: table, caption: legenda)
 
-// Prioridade MoSCoW com cor: Must have / Should have / Could have / Won't have (this time).
+// Prioridade MoSCoW (mantida do template da Fase 1; útil para recomendações).
 #let must = text(fill: rgb("#B00020"), weight: "bold")[Must]
 #let should = text(fill: rgb("#C76C1B"), weight: "bold")[Should]
 #let could = text(fill: rgb("#2E7D32"), weight: "bold")[Could]
@@ -128,15 +128,3 @@
 
   body
 }
-
-// -----------------------------------------------------------------------------
-// Acrescentos da Fase 2
-// -----------------------------------------------------------------------------
-// Texto escrito sem confirmação do grupo (palpite). Rever e retirar a marca antes
-// de entregar:  grep -rn "palpite\[" capitulos  não deve devolver nada.
-#let palpite(corpo) = highlight(fill: rgb("#FFF2CC"))[#text(weight: "bold", fill: rgb("#9A6700"))[\[Palpite, confirmar:\]] #corpo]
-
-// Avaliação face ao alvo e ao mínimo.
-#let ok = text(fill: rgb("#2E7D32"), weight: "bold")[cumpre o alvo]
-#let okmin = text(fill: rgb("#9A6700"), weight: "bold")[cumpre o mínimo]
-#let falha = text(fill: rgb("#C62828"), weight: "bold")[abaixo do mínimo]

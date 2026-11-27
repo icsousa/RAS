@@ -1,0 +1,102 @@
+@startuml arquitetura_global
+top to bottom direction
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 11
+skinparam ArrowColor #9AA0A6
+skinparam ArrowFontColor #4B5563
+skinparam ArrowFontSize 9
+skinparam ComponentBorderColor #9AA0A6
+skinparam ComponentBackgroundColor #F4F5F7
+skinparam DatabaseBorderColor #9AA0A6
+skinparam DatabaseBackgroundColor #FFFBEB
+skinparam QueueBorderColor #B45309
+skinparam QueueBackgroundColor #FFFBEB
+skinparam PackageBorderColor #6B7280
+skinparam PackageFontSize 10
+skinparam PackageStyle dashed
+skinparam FolderBorderColor #4F46E5
+skinparam FolderBackgroundColor #EEF2FF
+skinparam defaultTextAlignment center
+
+title Arquitetura global e caminho de vídeo
+
+component "Browser\n(Next.js SPA)" as browser #E8F1F1
+
+package "Entrada única · HTTPS :8080" as edge {
+  component "nginx\nTLS + reverse proxy\nclient_max_body_size 1100 MB" as nginx
+}
+
+package "Camada de acesso" as access {
+  component "frontend\nNext.js :3000" as frontend
+  component "API Gateway :8000\nExpress · JWT\nmulter.memoryStorage" as api_gateway
+  component "WS Gateway :4000\nSocket.IO · JWT\n(só fala com RabbitMQ)" as ws_gateway
+}
+
+package "Serviços de negócio" as business {
+  component "projects :9001\nORQUESTRADOR\npipelines · Process/Result · tokens\n(routes/projects.js, 2732 linhas)" as projects #FFFFFF
+  component "users :10001" as users
+  component "subscriptions :11001" as subscriptions
+  component "img_storage :11000\nfaçade S3\nmulter.memoryStorage" as img_storage
+  database "MongoDB\nprojects" as projects_db
+  database "MongoDB\nusers" as users_db
+  database "MongoDB\nsubscriptions" as subs_db
+}
+
+database "SeaweedFS (S3)\nsrc · out · preview · preview_cache\nencriptação em repouso" as s3
+
+package "RabbitMQ · exchange direto «picturas» · filas duráveis" as rmq #FFFBEB {
+  queue "<tool>_queue\n(16 filas de imagem)" as tool_q #FFFFFF
+  queue "video_queue" as video_q #FFFFFF
+  queue "project_queue\n(respostas dos workers)" as project_q #FFFFFF
+  queue "ws_queue\n(eventos para a UI)" as ws_q #FFFFFF
+}
+
+package "Workers (consomem filas)" as workers {
+  component "16 ferramentas de imagem\n1 contentor por fila · auto-ack\nPIL / IA" as img_tools
+  component "video_tool (1 contentor, sem réplicas)\nffmpeg + PIL por frame + Faster-Whisper\nprefetch = 1 · ack no fim" as video_tool #FDE7D3
+}
+
+folder "volume partilhado\nimage_data (/app/images)" as vol
+
+' Padrão global e caminho de imagens
+browser --> nginx
+nginx --> frontend
+nginx --> api_gateway : /api-gateway/
+nginx --> ws_gateway : /socket.io
+nginx --> s3 : /s3/
+api_gateway --> projects : REST
+api_gateway --> users
+api_gateway --> subscriptions
+projects --> img_storage
+img_storage --> s3
+projects -right- projects_db
+users -right- users_db
+subscriptions -right- subs_db
+projects --> tool_q : 1 msg por\n(imagem, ferramenta)
+tool_q --> img_tools
+img_tools --> project_q
+project_q --> projects : avança a cadeia
+projects --> ws_q
+ws_q --> ws_gateway
+projects -[#4F46E5,dashed,thickness=1] vol
+img_tools -[#4F46E5,dashed,thickness=1] vol
+
+' Caminho do vídeo
+api_gateway -[#C2410C,thickness=2]-> projects : POST …/video\n(buffer em memória)
+projects -[#C2410C,thickness=2]-> img_storage
+projects -[#C2410C,thickness=2]-> video_q : 1 msg por vídeo\n(pipeline completo)
+video_q -[#C2410C,thickness=2]-> video_tool
+video_tool -[#C2410C,thickness=2]-> project_q : resultado
+video_tool -[#C2410C,thickness=2]-> ws_q : video-progress (%)
+video_tool -[#C2410C,dashed,thickness=2]-> vol
+
+legend bottom
+  |= Cor |= Significado |
+  | <color:#C2410C>━━▶</color> | caminho do vídeo |
+  | <color:#9AA0A6>━━▶</color> | padrão global / caminho de imagens |
+  | <color:#4F46E5>┄┄</color> | acesso ao volume partilhado |
+endlegend
+@enduml

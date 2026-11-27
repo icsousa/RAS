@@ -1,4 +1,4 @@
-// Capa do relatório.
+// Capa do relatório .
 #let cover(title: "", subtitle: "", group: "", authors: (), string_date) = {
   let render_authors = grid(
     columns: 1,
