@@ -24,7 +24,7 @@
     [`README.md`, `AGENTS.md` da base], [commit `0523102`], [Arranque, serviços e convenções; identificação dos serviços e das filas],
     [Código da base (`projects`, `apiGateway`, `imageStorageService`, `Tools/video`, `Tools/utils`, `wsGateway`, `nginx`, `docker-compose.yaml`, `rabbitMQ/definitions.json`)], [commit `0523102` (= `406c8e0`)], [Evidências EV-01 a EV-15 sobre o fluxo, as filas e os padrões],
     [`doc-ext-requisitos-2627.pdf`], [Fase 1, Grupo 4, 2026-10-23], [Requisito REQ-VID-PREVIEW-005 e teste TST-PREVIEW-02 (origem do alvo de QS-02); limites dos perfis],
-    [`doc-sol-arquitetural.pdf`], [#preencher[versão / data]], [Padrão global da solução e decisões de arquitetura da base],
+    [`doc-sol-arquitetural.pdf`], [Versão disponibilizada pela equipa docente], [Consulta de enquadramento sobre o padrão global; as afirmações sobre o sistema atual apoiam-se no código e na execução (EV-nn), porque a base PL1-G4 alterou a solução original],
     [Slides da aula 11 (_Arch. Styles_) e documento de apoio de padrões arquiteturais], [#preencher[versão / data]], [Identificação dos estilos (microserviços, mensagens, consumidores concorrentes, pipes and filters) e das alternativas],
     [`fase-2-guidelines.pdf`], [Versão 1], [Ciclo do trabalho e ideias indicativas de RNF],
     [Medições exploratórias (`medicoes/upload_rss.js`, `medicoes/fila.py`)], [2026-11-11], [Evidência exploratória EV-18 e EV-19 (secção 6.3)],

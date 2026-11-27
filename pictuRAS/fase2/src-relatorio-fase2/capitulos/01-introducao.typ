@@ -20,7 +20,7 @@ O âmbito é a extensão de vídeo, analisada no quadro do padrão global da sol
     colunas: (5.2cm, 1fr),
     [Artefacto], [Versão / referência],
     [Documento de requisitos de base], [`doc-ext-requisitos-2627.pdf` (Fase 1, Grupo 4; gerado a 2026-10-23), cópia em `pictuRAS/fase2/`],
-    [Documento de solução arquitetural de base], [`doc-sol-arquitetural.pdf` #preencher[versão / data]],
+    [Documento de solução arquitetural de base], [`doc-sol-arquitetural.pdf` da base anterior, na versão disponibilizada pela equipa docente (não faz parte desta entrega)],
     [Repositório de partida], [#link("https://github.com/picturas-um/picturas-27")[`picturas-um/picturas-27`], commit `052310226c51fa57a17101c7bd1ad795674aac95` (solução PL1-G4 integrada). Cópia sem alterações no repositório do grupo no commit `406c8e0`],
     [Repositório entregue], [#link("https://github.com/icsousa/RAS")[`icsousa/RAS`], ramo `main`. Código refatorado e medições: commit `aba322d` (PR \#1 e \#2). Commit da entrega: #preencher[hash do commit de entrega (`git rev-parse HEAD` no `main` após integrar este relatório)]],
     [Diretrizes da Fase 2], [`fase-2-guidelines.pdf`, versão 1],
