@@ -32,7 +32,7 @@ Ambos partem de fragilidades da solução de base (PL1-G4) com evidência, anali
     [Documento de requisitos de base], [doc-ext-requisitos-2627.pdf],
     [Documento de solução arquitetural de base], [doc-sol-arquitetural.pdf],
     [Repositório de partida], [#link("https://github.com/picturas-um/picturas-27")[`picturas-um/picturas-27`], _commit_ `052310226c51fa57a17101c7bd1ad795674aac95` (cópia sem alterações em `icsousa/RAS`, _commit_ `406c8e0`)],
-    [Repositório entregue], [#link("https://github.com/icsousa/RAS")[`icsousa/RAS`], ramo `main`; código e medições no _commit_ `aba322d` (PR \#1 e \#2); _commit_ da entrega: #preencher[hash do _commit_ de entrega]],
+    [Repositório entregue], [#link("https://github.com/icsousa/RAS")[`icsousa/RAS`], ramo `main`; código e medições no _commit_ `aba322d` (PR \#1 e \#2); _commit_ da entrega: _tag_ `fase2-entrega` (#link("https://github.com/icsousa/RAS/releases/tag/fase2-entrega")[`icsousa/RAS@fase2-entrega`])],
     [Diretrizes da Fase 2], [Versão 1 (`fase-2-guidelines.pdf`)],
   ),
 )
