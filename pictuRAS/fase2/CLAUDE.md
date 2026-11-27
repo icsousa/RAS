@@ -10,10 +10,9 @@ Responde em português de Portugal. Código, comentários e mensagens de commit 
 | --- | --- |
 | `pictuRAS/fase2/picturas-27/` | Código base (solução PL1-G4). Lê o `AGENTS.md` desta pasta antes de mexer no código |
 | `pictuRAS/fase2/fase-2-guidelines.pdf` | Diretrizes da Fase 2 |
-| `pictuRAS/fase2/analise-rnf.typ` / `.pdf` | Análise dos dois RNF: diagnóstico, métricas, alternativas, plano |
+| `pictuRAS/fase2/src-relatorio-fase2/` | Relatório da Fase 2 (template oficial). Compilar nesta pasta com `typst compile --font-path fonts main.typ relatorio-fase2.pdf` |
 | `pictuRAS/fase2/medicoes/` | `medir.py` (medições oficiais em Docker), `README.md`, override para o M3, scripts exploratórios |
 | `pictuRAS/fase2/medicoes/resultados/<etiqueta>/` | Resultados JSON/CSV (`base` e `final`) |
-| `entrega-refatoracao/` (zip recebido) | 3 patches + `LEIA-ME.md` |
 
 Commit oficial de partida (para o relatório): `052310226c51fa57a17101c7bd1ad795674aac95`.
 
@@ -78,7 +77,7 @@ A medição de base tem de ser feita no código original, **antes** de aplicar o
 6. **Medição final**: os mesmos comandos do passo 3 com `--etiqueta final`, depois de `down -v` e `up -d --build`. Durante a elasticidade, observar `docker compose logs -f video_autoscaler` e `docker compose ps video_tool`.
 7. **Commit e push** de `resultados/final/`; abrir PR de `fase2/refatoracao` para `main`.
 8. **Relatório**:
-   - tabelas base vs. final por métrica, comparadas com o alvo e o mínimo de `analise-rnf.typ`;
+   - tabelas base vs. final por métrica, comparadas com o alvo e o mínimo definidos nos capítulos do relatório (`src-relatorio-fase2/capitulos/`);
    - efeitos colaterais: segurança (`docker.sock`), disco temporário e mais serviços para manter;
    - utilização de IA;
    - commit de partida.
@@ -100,4 +99,4 @@ A medição de base tem de ser feita no código original, **antes** de aplicar o
   - no Docker Desktop, confirmar que `/var/run/docker.sock` existe (Settings → Advanced → "Allow the default Docker socket to be used").
 - **Uploads falham depois da refatoração:** ver `docker compose logs api_gateway projects img_storage`. Confirmar que o nginx foi reconstruído com `proxy_request_buffering off`.
 - **A stack da Fase 1 interfere:** `docker compose down -v --remove-orphans` na pasta antiga.
-- **Mudanças nos números ou alvos:** atualizar também `analise-rnf.typ` e recompilar com `typst compile analise-rnf.typ`.
+- **Mudanças nos números ou alvos:** atualizar também os capítulos do relatório em `src-relatorio-fase2/capitulos/` e recompilar nessa pasta com `typst compile --font-path fonts main.typ relatorio-fase2.pdf`.
