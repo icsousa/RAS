@@ -16,17 +16,19 @@
 == Antes
 
 #figure(kind: image,
-  figura-pendente[vista arquitetural antes das decisões (`images/vista_antes.png`)],
+  image("../images/vista_antes.png", height: 10cm),
   caption: [Vista arquitetural antes das decisões DA-1 e DA-2],
 )
 
 == Depois
 
 #figure(kind: image,
-  figura-pendente[vista arquitetural depois das decisões, com os elementos alterados destacados (`images/vista_depois.png`)],
+  image("../images/vista_depois.png", height: 11.5cm),
   caption: [Vista arquitetural depois das decisões DA-1 e DA-2],
 )
 
 == Legenda e notas
 
-#preencher[Legenda dos destaques (cores, estereótipos) e notas sobre o que mudou entre as duas vistas.]
+Diagramas de componentes do mesmo recorte (carregamento e processamento de vídeo), com a mesma notação (Graphviz; fontes em `diagramas/vista_antes.dot` e `diagramas/vista_depois.dot`). *Legenda:* verde com contorno grosso, elemento ou interação novo ou alterado por uma tática, com o estereótipo «tática: …»; branco, sem alterações; retângulo bege, fila do RabbitMQ; cilindro, armazenamento; linha tracejada, leitura de métricas ou controlo.
+
+*DA-1:* os quatro saltos passam de «receber tudo, depois enviar» a _stream_ (nginx sem _buffering_, gateway com _token_ e _pipe_, `projects` com recusa antecipada e ficheiro temporário, `img_storage` com _multipart_), e o frontend mostra o progresso; as ligações entre saltos não mudam. *DA-2:* a fila única dá lugar a duas (`video_queue` e `video_preview_queue`); o `video_tool` passa de 1 instância a 1–4 réplicas, criadas e removidas pelo novo `video_autoscaler` através do `docker.sock`; o _worker_ tem _heartbeat_ ativo e devolve a mensagem à fila ao receber SIGTERM.

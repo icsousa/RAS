@@ -1,0 +1,28 @@
+// Vista arquitetural ANTES das decisões DA-1 e DA-2 (componentes do carregamento e do processamento de vídeo).
+// Gerar: dot -Tpng -Gdpi=200 vista_antes.dot -o ../images/vista_antes.png
+digraph G {
+  rankdir=TB; splines=spline; nodesep=0.3; ranksep=0.4;
+  node [fontname="Carlito", fontsize=11, shape=box, style="rounded,filled", fillcolor="#FFFFFF", color="#555555"];
+  edge [fontname="Carlito", fontsize=9, color="#666666"];
+  user [label="Browser\n(frontend)\nsem progresso", fillcolor="#EEEEEE"];
+  subgraph cluster_up { label="Carregamento (QS-01)"; fontname="Carlito"; fontsize=10; style=dashed; color="#999999";
+    nginx [label="nginx\nproxy_request_buffering on\n(corpo inteiro em disco)"];
+    gw [label="api_gateway\nmulter.memoryStorage\nantes do checkToken"];
+    projects [label="projects\nmemoryStorage + ffprobe\nsobre buffer + sha256"];
+    store [label="img_storage\nmemoryStorage\ns3.upload(Body: buffer)"];
+  }
+  s3 [label="SeaweedFS (S3)", shape=cylinder];
+  subgraph cluster_proc { label="Processamento de vídeo (QS-02)"; fontname="Carlito"; fontsize=10; style=dashed; color="#999999";
+    q [label="video_queue\n(processamentos e\npré-visualizações)", style="filled", fillcolor="#F3E3D3"];
+    video [label="video_tool ×1\nprefetch=1, heartbeat=0"];
+  }
+  pq [label="project_queue / ws_queue", style="filled", fillcolor="#F3E3D3"];
+  user -> nginx [label="POST …/video\n(multipart)"];
+  nginx -> gw [label="após receber\ntudo"];
+  gw -> projects [label="FormData(buffer)"];
+  projects -> store [label="FormData(buffer)"];
+  store -> s3;
+  projects -> q [label="Apply / pré-visualizar"];
+  q -> video;
+  video -> pq [label="resultado,\nprogresso"];
+}

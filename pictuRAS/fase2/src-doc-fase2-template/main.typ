@@ -9,18 +9,18 @@
 #show: project
 
 // Antes de entregar: `false` esconde todas as caixas de orientação.
-#mostrar-orientacoes.update(true)
+#mostrar-orientacoes.update(false)
 
 #cover(
   title: "Fase 2 — Melhoria de Requisitos Não Funcionais",
   subtitle: "Diagnóstico, decisões arquiteturais e avaliação",
-  group: "Grupo PL?-G?",   // e.g., "Grupo PL3-G2"
+  group: "Grupo PL3-G7",
   authors: (
-    (name: "Nome Apelido", number: "pg00000"),
-    (name: "Nome Apelido", number: "pg00000"),
-    (name: "Nome Apelido", number: "pg00000"),
-    (name: "Nome Apelido", number: "pg00000"),
-    (name: "Nome Apelido", number: "pg00000"),
+    (name: "Duarte Pinto Bravo", number: "pg63951"),
+    (name: "Ivo Costa Sousa", number: "pg63976"),
+    (name: "João Afonso Almeida Sousa", number: "pg62405"),
+    (name: "Ricardo Eusebio Cerqueira", number: "pg64022"),
+    (name: "Tiago Gonçalves Melo", number: "pg65445"),
   ),
   "Novembro, 2026",
 )
