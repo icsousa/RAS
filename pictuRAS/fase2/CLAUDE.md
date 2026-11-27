@@ -10,7 +10,7 @@ Responde em português de Portugal. Código, comentários e mensagens de commit 
 | --- | --- |
 | `pictuRAS/fase2/picturas-27/` | Código base (solução PL1-G4). Lê o `AGENTS.md` desta pasta antes de mexer no código |
 | `pictuRAS/fase2/fase-2-guidelines.pdf` | Diretrizes da Fase 2 |
-| `pictuRAS/fase2/src-relatorio-fase2/` | Relatório da Fase 2 (template oficial). Compilar nesta pasta com `typst compile --font-path fonts main.typ relatorio-fase2.pdf` |
+| `pictuRAS/fase2/src-relatorio-fase2/` | Relatório da Fase 2 (template oficial). Compilar nesta pasta com `typst compile --font-path fonts main.typ` (gera `main.pdf`) |
 | `pictuRAS/fase2/medicoes/` | `medir.py` (medições oficiais em Docker), `README.md`, override para o M3, scripts exploratórios |
 | `pictuRAS/fase2/medicoes/resultados/<etiqueta>/` | Resultados JSON/CSV (`base` e `final`) |
 
@@ -99,4 +99,4 @@ A medição de base tem de ser feita no código original, **antes** de aplicar o
   - no Docker Desktop, confirmar que `/var/run/docker.sock` existe (Settings → Advanced → "Allow the default Docker socket to be used").
 - **Uploads falham depois da refatoração:** ver `docker compose logs api_gateway projects img_storage`. Confirmar que o nginx foi reconstruído com `proxy_request_buffering off`.
 - **A stack da Fase 1 interfere:** `docker compose down -v --remove-orphans` na pasta antiga.
-- **Mudanças nos números ou alvos:** atualizar também os capítulos do relatório em `src-relatorio-fase2/capitulos/` e recompilar nessa pasta com `typst compile --font-path fonts main.typ relatorio-fase2.pdf`.
+- **Mudanças nos números ou alvos:** atualizar também os capítulos do relatório em `src-relatorio-fase2/capitulos/` e recompilar nessa pasta com `typst compile --font-path fonts main.typ` (gera `main.pdf`).
