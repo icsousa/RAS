@@ -1,9 +1,10 @@
 // =============================================================================
 //  PictuRAS · RAS 2026/2027 · Relatório da Fase 2 — Melhoria de RNF
 //  Compilar:  typst compile --font-path fonts main.typ relatorio-fase2.pdf
-//  Feito a partir do template da Fase 1. Rascunho escrito com apoio de IA (Claude)
-//  e a rever pelo grupo (PL3-G7). Antes de entregar:
-//    grep -rn "palpite\[\|preencher\[" capitulos   -> não deve devolver nada
+//  Estrutura e numeração de capítulos, secções, tabelas e figuras seguem o
+//  template oficial da Fase 2 (template-fase2). Diagramas: pasta diagramas/
+//  (Graphviz), exportados para images/. Antes de entregar:
+//    grep -rn "preencher\[\|palpite\[" capitulos   -> não deve devolver nada
 // =============================================================================
 #import "cover.typ": cover
 #import "template.typ": *
@@ -14,7 +15,7 @@
 
 #cover(
   title: "Fase 2 — Melhoria de Requisitos Não Funcionais",
-  subtitle: "Especificação, refatoração e avaliação",
+  subtitle: "Diagnóstico, decisões arquiteturais e avaliação",
   group: "Grupo PL3-G7",
   authors: (
     (name: "Duarte Pinto Bravo", number: "pg63951"),
@@ -30,10 +31,12 @@
 #counter(page).update(1)
 
 #include "capitulos/00-historico-versoes.typ"
+#pagebreak()
 
-#outline(title: [Índice], indent: auto, depth: 3)
+#outline(title: [Índice], indent: auto, depth: 2)
 #pagebreak()
 #outline(title: [Lista de Figuras], target: figure.where(kind: image))
+#pagebreak()
 #outline(title: [Lista de Tabelas], target: figure.where(kind: table))
 
 #set page(numbering: "1", number-align: center)
@@ -41,17 +44,20 @@
 
 // Parte I — Enquadramento
 #include "capitulos/01-introducao.typ"
-#include "capitulos/02-ambiente-metodo.typ"
-
-// Parte II — Os dois requisitos não funcionais
-#include "capitulos/03-rnf01-carregamento.typ"
-#include "capitulos/04-rnf02-elasticidade.typ"
-
-// Parte III — Avaliação transversal, IA e conclusão
-#include "capitulos/05-efeitos-colaterais.typ"
-#include "capitulos/06-preservacao-funcional.typ"
-#include "capitulos/07-validade-medicoes.typ"
-#include "capitulos/08-utilizacao-ia.typ"
-#include "capitulos/09-conclusao.typ"
+// Parte II — Diagnóstico (Exercício 6, Bloco 1)
+#include "capitulos/02-ambito-arquitetura.typ"
+#include "capitulos/03-padroes.typ"
+#include "capitulos/04-alternativas.typ"
+// Parte III — Qualidade (Exercício 6, Bloco 2)
+#include "capitulos/05-cenarios-qualidade.typ"
+#include "capitulos/06-candidatos-rnf.typ"
+// Parte IV — Táticas, decisões, medição e resultados (Exercício 7)
+#include "capitulos/07-taticas.typ"
+#include "capitulos/08-decisoes.typ"
+#include "capitulos/09-vistas.typ"
+#include "capitulos/10-tradeoffs-medicao.typ"
+// Parte V — Síntese
+#include "capitulos/11-conclusoes.typ"
+#include "capitulos/12-utilizacao-ia.typ"
 
 #include "capitulos/99-anexos.typ"

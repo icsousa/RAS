@@ -1,0 +1,51 @@
+// Vista da arquitetura global (solução de base, commit 0523102), caminho do vídeo a laranja.
+// Gerar: dot -Tpng -Gdpi=200 arquitetura_global.dot -o ../images/arquitetura_global.png
+digraph G {
+  rankdir=TB; newrank=true; splines=spline; nodesep=0.3; ranksep=0.45;
+  node [fontname="Carlito", fontsize=11, shape=box, style="rounded,filled", fillcolor="#FFFFFF", color="#555555"];
+  edge [fontname="Carlito", fontsize=9, color="#888888"];
+
+  user [label="Browser\n(frontend Next.js)", shape=box, fillcolor="#EEEEEE"];
+  nginx [label="nginx\n(proxy inverso)"];
+  subgraph cluster_sync { label="Comunicação síncrona (HTTP)"; fontname="Carlito"; fontsize=10; style=dashed; color="#999999";
+    gw [label="api_gateway\n(Express)"];
+    users [label="users"]; subs [label="subscriptions"];
+    projects [label="projects\n(orquestrador)", penwidth=2];
+    store [label="img_storage"];
+  }
+  ws [label="ws_gateway\n(Socket.IO)"];
+  s3 [label="SeaweedFS\n(S3)", shape=cylinder];
+  mongo [label="MongoDB\n(1 por serviço)", shape=cylinder, fillcolor="#F5F5F5"];
+  subgraph cluster_mq { label="RabbitMQ — exchange «picturas»"; fontname="Carlito"; fontsize=10; style="rounded"; color="#555555";
+    qtools [label="filas das ferramentas\nde imagem (1 por ferramenta)", shape=box, style="filled", fillcolor="#F3E3D3"];
+    qvideo [label="video_queue", shape=box, style="filled,bold", fillcolor="#FCE4CC", color="#C76C1B"];
+    qproj [label="project_queue", shape=box, style="filled", fillcolor="#F3E3D3"];
+    qws [label="ws_queue", shape=box, style="filled", fillcolor="#F3E3D3"];
+  }
+  tools [label="workers de imagem\n(1 por ferramenta, auto_ack)"];
+  video [label="video_tool\n(1 instância, prefetch=1)", color="#C76C1B", penwidth=2.5];
+  vol [label="volume partilhado\nimage_data", shape=folder, fillcolor="#F5F5F5"];
+
+  user -> nginx [label="HTTPS", color="#C76C1B", penwidth=2.2];
+  nginx -> gw [color="#C76C1B", penwidth=2.2];
+  nginx -> ws [label="WebSocket", dir=both];
+  gw -> users; gw -> subs;
+  gw -> projects [color="#C76C1B", penwidth=2.2];
+  projects -> store [color="#C76C1B", penwidth=2.2];
+  store -> s3 [color="#C76C1B", penwidth=2.2];
+  projects -> mongo [style=dotted, arrowhead=none]; users -> mongo [style=dotted, arrowhead=none]; subs -> mongo [style=dotted, arrowhead=none];
+  projects -> qtools [label="1 msg por passo"];
+  projects -> qvideo [label="pipeline inteiro\nnuma msg", color="#C76C1B", penwidth=2.2, fontcolor="#C76C1B"];
+  qtools -> tools;
+  qvideo -> video [color="#C76C1B", penwidth=2.2];
+  tools -> qproj;
+  video -> qproj [color="#C76C1B", penwidth=2.2];
+  video -> qws [label="progresso %", color="#C76C1B", penwidth=2.2, fontcolor="#C76C1B"];
+  qproj -> projects [label="resultado → passo seguinte", constraint=false];
+  projects -> qws [label="fim / erro", constraint=false];
+  qws -> ws;
+  projects -> vol [style=dashed, arrowhead=none];
+  tools -> vol [style=dashed, arrowhead=none];
+  video -> vol [style=dashed, arrowhead=none, color="#C76C1B"];
+  { rank=same; qtools; qvideo; qproj; qws; }
+}
